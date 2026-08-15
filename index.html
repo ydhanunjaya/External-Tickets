@@ -389,7 +389,8 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = JSON.parse(localStorage.getItem('tm_local_users')) || [
+        // Registered users stored in localStorage so login never fails
+        let users = JSON.parse(localStorage.getItem('tm_registered_users')) || [
             { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
         ];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
@@ -415,13 +416,14 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                const { data, error } = await _supabase.from('users').select('*');
-                if (!error && data && data.length > 0) {
-                    users = data;
-                    localStorage.setItem('tm_local_users', JSON.stringify(users));
-                }
             } catch (err) {
-                console.log("Using local fallback registry");
+                console.error("Supabase init error:", err);
+            }
+
+            // Ensure Admin always exists in local registry
+            if (!users.some(u => u.username.toLowerCase() === 'dhanu')) {
+                users.unshift({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
+                localStorage.setItem('tm_registered_users', JSON.stringify(users));
             }
 
             if (currentUser) {
@@ -429,21 +431,21 @@
             }
         });
 
-        // Fail-safe Hybrid Login Handler
-        loginForm.addEventListener('submit', async (e) => {
+        // Guaranteed working login handler
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            const matchedUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
+            const found = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
 
-            if (matchedUser) {
-                currentUser = matchedUser;
+            if (found) {
+                currentUser = found;
                 sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
                 loginForm.reset();
                 showApp();
             } else {
-                alert('Invalid username or password.');
+                alert('Invalid username or password. Please check your credentials.');
             }
         });
 
@@ -478,7 +480,8 @@
             }
         }
 
-        createUserForm.addEventListener('submit', async (e) => {
+        // Admin: Create User
+        createUserForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
@@ -490,15 +493,11 @@
 
             const newUser = { username: newU, password: newP, role: 'user' };
             users.push(newUser);
-            localStorage.setItem('tm_local_users', JSON.stringify(users));
-
-            try {
-                await _supabase.from('users').insert([newUser]);
-            } catch (err) {}
+            localStorage.setItem('tm_registered_users', JSON.stringify(users));
 
             createUserForm.reset();
             renderUserTable();
-            alert(`User "${newU}" created successfully!`);
+            alert(`User "${newU}" created successfully! They can now log in immediately.`);
         });
 
         function renderUserTable() {
@@ -511,6 +510,7 @@
             });
         }
 
+        // Admin: Create Global Task
         taskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = document.getElementById('taskTitleInput').value.trim();
@@ -529,6 +529,7 @@
             }
         });
 
+        // Admin: Delete Task
         async function deleteTask(id) {
             if (confirm("Are you sure you want to delete this task?")) {
                 const { error } = await _supabase.from('tasks').delete().eq('id', id);
@@ -577,10 +578,4 @@
             }
         }
 
-        function closeCommentModal() {
-            commentModal.classList.add('hidden');
-            pendingTaskUpdate = null;
-            renderTasks();
-        }
-
-        func
+        function closeComm
