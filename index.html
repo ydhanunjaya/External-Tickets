@@ -328,6 +328,7 @@
                         <tr>
                             <th>Username</th>
                             <th>Role</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -389,9 +390,7 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = [
-            { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
-        ];
+        let users = [];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
         let currentFilter = 'All';
         let pendingTaskUpdate = null;
@@ -428,19 +427,18 @@
         async function fetchUsers() {
             const { data, error } = await _supabase.from('users').select('*');
             if (!error && data) {
-                // Ensure Dhanu is always in the user list
                 if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
                     data.push({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
                 }
                 users = data;
                 if (currentUser) {
-                    // Update current user role info if needed
                     const updated = users.find(u => u.username.toLowerCase() === currentUser.username.toLowerCase());
                     if (updated) {
                         currentUser = updated;
                         sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
                     }
                 }
+                renderUserTable();
             }
         }
 
@@ -449,7 +447,7 @@
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            await fetchUsers(); // Refresh user list from Supabase before checking
+            await fetchUsers();
 
             const foundUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
 
@@ -478,7 +476,7 @@
             if (currentUser.role === 'admin') {
                 adminUserSection.classList.remove('hidden');
                 adminTaskSection.classList.remove('hidden');
-                renderUserTable();
+                await fetchUsers();
             } else {
                 adminUserSection.classList.add('hidden');
                 adminTaskSection.classList.add('hidden');
@@ -513,17 +511,36 @@
             } else {
                 createUserForm.reset();
                 await fetchUsers();
-                renderUserTable();
                 alert(`User "${newU}" created successfully!`);
             }
         });
+
+        // Admin: Delete User
+        async function deleteUser(id, username) {
+            if (username.toLowerCase() === 'dhanu') {
+                alert("You cannot delete the primary admin account!");
+                return;
+            }
+            if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+                const { error } = await _supabase.from('users').delete().eq('id', id);
+                if (error) {
+                    alert("Failed to delete user: " + error.message);
+                } else {
+                    await fetchUsers();
+                }
+            }
+        }
 
         function renderUserTable() {
             const tbody = document.querySelector('#userTable tbody');
             tbody.innerHTML = '';
             users.forEach(u => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${u.username}</td><td>${u.role.toUpperCase()}</td>`;
+                let actionHTML = (currentUser.role === 'admin' && u.username.toLowerCase() !== 'dhanu') 
+                    ? `<button class="delete-btn" onclick="deleteUser(${u.id}, '${u.username}')">Delete User</button>` 
+                    : '<span style="color:var(--text-muted); font-size:0.85rem;">Protected</span>';
+
+                tr.innerHTML = `<td>${u.username}</td><td>${u.role.toUpperCase()}</td><td>${actionHTML}</td>`;
                 tbody.appendChild(tr);
             });
         }
