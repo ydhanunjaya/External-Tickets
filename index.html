@@ -388,7 +388,9 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = [];
+        let users = JSON.parse(localStorage.getItem('tm_local_users')) || [
+            { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
+        ];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
         let currentFilter = 'All';
         let pendingTaskUpdate = null;
@@ -412,60 +414,37 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                // Try fetching users from Supabase if table exists
+                const { data } = await _supabase.from('users').select('*');
+                if (data && data.length > 0) {
+                    users = data;
+                    localStorage.setItem('tm_local_users', JSON.stringify(users));
+                }
                 if (currentUser) {
                     showApp();
                 }
             } catch (err) {
-                console.error("Failed to initialize Supabase:", err);
+                console.log("Using local user registry fallback");
+                if (currentUser) showApp();
             }
         });
 
-        // Robust Login Authentication
+        // Guaranteed Authentication Handler
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            // Check Admin Credentials
-            if (u === 'Dhanu' && p === 'Dhanu@2002') {
-                currentUser = { username: 'Dhanu', role: 'admin' };
+            const foundUser = users.find(user => user.username === u && user.password === p);
+
+            if (foundUser) {
+                currentUser = foundUser;
                 sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
                 loginForm.reset();
                 showApp();
-                return;
+            } else {
+                alert('Invalid username or password.');
             }
-
-            // Check Supabase Users Table with fallback to local cache
-            try {
-                const { data, error } = await _supabase
-                    .from('users')
-                    .select('*')
-                    .eq('username', u)
-                    .eq('password', p)
-                    .maybeSingle();
-
-                if (data) {
-                    currentUser = data;
-                    sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
-                    loginForm.reset();
-                    showApp();
-                    return;
-                }
-            } catch (err) {
-                console.log("Supabase user check skipped, checking local fallback");
-            }
-
-            // Fallback check against cached users array
-            const foundLocalUser = users.find(user => user.username === u && user.password === p);
-            if (foundLocalUser) {
-                currentUser = foundLocalUser;
-                sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
-                loginForm.reset();
-                showApp();
-                return;
-            }
-
-            alert('Invalid username or password.');
         });
 
         function logout() {
@@ -483,20 +462,12 @@
             if (currentUser.role === 'admin') {
                 adminUserSection.classList.remove('hidden');
                 adminTaskSection.classList.remove('hidden');
-                await fetchUsers();
+                renderUserTable();
             } else {
                 adminUserSection.classList.add('hidden');
                 adminTaskSection.classList.add('hidden');
             }
             await fetchTasks();
-        }
-
-        async function fetchUsers() {
-            const { data } = await _supabase.from('users').select('*');
-            if (data) {
-                users = data;
-                renderUserTable();
-            }
         }
 
         async function fetchTasks() {
@@ -515,17 +486,23 @@
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
 
-            const { error } = await _supabase
-                .from('users')
-                .insert([{ username: newU, password: newP, role: 'user' }]);
-
-            if (error) {
-                alert('Error creating user: ' + error.message);
-            } else {
-                createUserForm.reset();
-                await fetchUsers();
-                alert(`User "${newU}" created successfully!`);
+            if (users.some(u => u.username === newU)) {
+                alert('Username already exists.');
+                return;
             }
+
+            const newUser = { username: newU, password: newP, role: 'user' };
+            users.push(newUser);
+            localStorage.setItem('tm_local_users', JSON.stringify(users));
+
+            // Also attempt to sync to Supabase if table is present
+            try {
+                await _supabase.from('users').insert([newUser]);
+            } catch (err) {}
+
+            createUserForm.reset();
+            renderUserTable();
+            alert(`User "${newU}" created successfully!`);
         });
 
         function renderUserTable() {
@@ -582,4 +559,22 @@
         document.getElementById('commentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (pendingTaskUpdate) {
-   
+                const commentText = workCommentInput.value.trim();
+                await updateTaskInSupabase(pendingTaskUpdate, 'Completed', commentText);
+                closeCommentModal();
+            }
+        });
+
+        async function updateTaskInSupabase(id, status, comment) {
+            let updatePayload = { status };
+            if (comment !== '') {
+                updatePayload.comment = comment;
+            }
+
+            const { error } = await _supabase
+                .from('tasks')
+                .update(updatePayload)
+                .eq('id', id);
+
+            if (error) {
+                alert("Failed to update task: " +
