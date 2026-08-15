@@ -96,7 +96,7 @@
             color: var(--text-main);
         }
 
-        input[type="text"], input[type="password"], input[type="date"], textarea, select {
+        input[type="text"], input[type="date"], textarea, select {
             padding: 0.75rem;
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -225,23 +225,6 @@
         .hidden {
             display: none !important;
         }
-
-        .user-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-
-        .user-table th, .user-table td {
-            border: 1px solid var(--border);
-            padding: 0.75rem;
-            text-align: left;
-            font-size: 0.9rem;
-        }
-
-        .user-table th {
-            background-color: #f1f5f9;
-        }
     </style>
 </head>
 <body>
@@ -254,36 +237,6 @@
                 <p style="color: var(--text-muted); font-size: 0.9rem;">Workspace Dashboard</p>
             </div>
         </header>
-
-        <!-- ADMIN SECTION: Create Users -->
-        <div id="adminUserSection" class="card">
-            <h2>Create New User Account</h2>
-            <form id="createUserForm" class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
-                <div class="form-group">
-                    <label for="newUsername">Username</label>
-                    <input type="text" id="newUsername" required placeholder="New username">
-                </div>
-                <div class="form-group">
-                    <label for="newPassword">Password</label>
-                    <input type="password" id="newPassword" required placeholder="New password">
-                </div>
-                <div class="form-group" style="justify-content: flex-end;">
-                    <button type="submit">Create User</button>
-                </div>
-            </form>
-            <div style="margin-top: 1.5rem;">
-                <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Existing Users</h3>
-                <table class="user-table" id="userTable">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Role</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
 
         <!-- ADMIN SECTION: Create Tasks -->
         <div id="adminTaskSection" class="card">
@@ -339,12 +292,10 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = [];
         let currentFilter = 'All';
         let pendingTaskUpdate = null;
 
         const taskForm = document.getElementById('taskForm');
-        const createUserForm = document.getElementById('createUserForm');
         const taskListContainer = document.getElementById('taskList');
         const commentModal = document.getElementById('commentModal');
         const workCommentInput = document.getElementById('workComment');
@@ -357,20 +308,11 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                await fetchUsers();
                 await fetchTasks();
             } catch (err) {
                 console.error("Failed to initialize Supabase:", err);
             }
         });
-
-        async function fetchUsers() {
-            const { data } = await _supabase.from('users').select('*');
-            if (data) {
-                users = data;
-                renderUserTable();
-            }
-        }
 
         async function fetchTasks() {
             const { data } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
@@ -378,34 +320,6 @@
                 tasks = data;
                 renderTasks();
             }
-        }
-
-        createUserForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newU = document.getElementById('newUsername').value.trim();
-            const newP = document.getElementById('newPassword').value.trim();
-
-            const { error } = await _supabase
-                .from('users')
-                .insert([{ username: newU, password: newP, role: 'user' }]);
-
-            if (error) {
-                alert('Error creating user (Username might already exist).');
-            } else {
-                createUserForm.reset();
-                await fetchUsers();
-                alert(`User "${newU}" created successfully!`);
-            }
-        });
-
-        function renderUserTable() {
-            const tbody = document.querySelector('#userTable tbody');
-            tbody.innerHTML = '';
-            users.forEach(u => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${u.username}</td><td>${u.role.toUpperCase()}</td>`;
-                tbody.appendChild(tr);
-            });
         }
 
         taskForm.addEventListener('submit', async (e) => {
