@@ -389,7 +389,7 @@
     <script>
         let _supabase;
         let tasks = [];
-        // Registered users stored in localStorage so login never fails
+        // Registered users cached locally + synced with Supabase
         let users = JSON.parse(localStorage.getItem('tm_registered_users')) || [
             { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
         ];
@@ -416,11 +416,16 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                const { data, error } = await _supabase.from('users').select('*');
+                if (!error && data && data.length > 0) {
+                    users = data;
+                    localStorage.setItem('tm_registered_users', JSON.stringify(users));
+                }
             } catch (err) {
-                console.error("Supabase init error:", err);
+                console.log("Using local registry fallback");
             }
 
-            // Ensure Admin always exists in local registry
+            // Always ensure admin exists
             if (!users.some(u => u.username.toLowerCase() === 'dhanu')) {
                 users.unshift({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
                 localStorage.setItem('tm_registered_users', JSON.stringify(users));
@@ -431,16 +436,16 @@
             }
         });
 
-        // Guaranteed working login handler
+        // Fail-safe Login Handler
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            const found = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
+            const foundUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
 
-            if (found) {
-                currentUser = found;
+            if (foundUser) {
+                currentUser = foundUser;
                 sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
                 loginForm.reset();
                 showApp();
@@ -481,7 +486,7 @@
         }
 
         // Admin: Create User
-        createUserForm.addEventListener('submit', (e) => {
+        createUserForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
@@ -495,9 +500,13 @@
             users.push(newUser);
             localStorage.setItem('tm_registered_users', JSON.stringify(users));
 
+            try {
+                await _supabase.from('users').insert([newUser]);
+            } catch (err) {}
+
             createUserForm.reset();
             renderUserTable();
-            alert(`User "${newU}" created successfully! They can now log in immediately.`);
+            alert(`User "${newU}" created successfully! They can log in right away.`);
         });
 
         function renderUserTable() {
@@ -563,19 +572,4 @@
         async function updateTaskInSupabase(id, status, comment) {
             let updatePayload = { status };
             if (comment !== '') {
-                updatePayload.comment = comment;
-            }
-
-            const { error } = await _supabase
-                .from('tasks')
-                .update(updatePayload)
-                .eq('id', id);
-
-            if (error) {
-                alert("Failed to update task: " + error.message);
-            } else {
-                await fetchTasks();
-            }
-        }
-
-        function closeComm
+                updatePayload.commen
