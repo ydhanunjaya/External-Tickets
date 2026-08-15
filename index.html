@@ -389,7 +389,10 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = [];
+        // Default hardcoded admin + local fallback registry
+        let users = [
+            { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
+        ];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
         let currentFilter = 'All';
         let pendingTaskUpdate = null;
@@ -413,51 +416,44 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                await fetchUsers();
-                if (currentUser) {
-                    showApp();
+                
+                // Fetch all registered users from Supabase and merge with default admin
+                const { data, error } = await _supabase.from('users').select('*');
+                if (!error && data) {
+                    const adminExists = data.some(u => u.username.toLowerCase() === 'dhanu');
+                    if (!adminExists) {
+                        // Ensure admin exists in DB if table was empty
+                        await _supabase.from('users').insert([{ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }]);
+                        data.push({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
+                    }
+                    users = data;
                 }
             } catch (err) {
-                console.error("Supabase initialization error:", err);
+                console.warn("Using default admin configuration due to network/DB error");
+            }
+
+            if (currentUser) {
+                showApp();
             }
         });
 
-        // Login Handler
+        // Fail-safe In-Memory Login Verification
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            // Direct check for Admin
-            if (u === 'Dhanu' && p === 'Dhanu@2002') {
-                currentUser = { username: 'Dhanu', role: 'admin' };
+            // Match against any user in our registry (case-insensitive username)
+            const matchedUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
+
+            if (matchedUser) {
+                currentUser = matchedUser;
                 sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
                 loginForm.reset();
                 showApp();
-                return;
+            } else {
+                alert('Invalid username or password.');
             }
-
-            // Query Supabase users table for other users
-            try {
-                const { data, error } = await _supabase
-                    .from('users')
-                    .select('*')
-                    .eq('username', u)
-                    .eq('password', p)
-                    .maybeSingle();
-
-                if (data) {
-                    currentUser = data;
-                    sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
-                    loginForm.reset();
-                    showApp();
-                    return;
-                }
-            } catch (err) {
-                console.error("Login verification query error:", err);
-            }
-
-            alert('Invalid username or password.');
         });
 
         function logout() {
@@ -475,7 +471,7 @@
             if (currentUser.role === 'admin') {
                 adminUserSection.classList.remove('hidden');
                 adminTaskSection.classList.remove('hidden');
-                await fetchUsers();
+                renderUserTable();
             } else {
                 adminUserSection.classList.add('hidden');
                 adminTaskSection.classList.add('hidden');
@@ -483,19 +479,9 @@
             await fetchTasks();
         }
 
-        async function fetchUsers() {
-            const { data, error } = await _supabase.from('users').select('*');
-            if (!error && data) {
-                users = data;
-                renderUserTable();
-            }
-        }
-
         async function fetchTasks() {
             const { data, error } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
-            if (error) {
-                console.error("Error fetching tasks:", error);
-            } else if (data) {
+            if (!error && data) {
                 tasks = data;
                 renderTasks();
             }
@@ -507,15 +493,20 @@
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
 
-            const { error } = await _supabase
-                .from('users')
-                .insert([{ username: newU, password: newP, role: 'user' }]);
+            if (users.some(u => u.username.toLowerCase() === newU.toLowerCase())) {
+                alert('Username already exists.');
+                return;
+            }
 
+            const newUser = { username: newU, password: newP, role: 'user' };
+
+            const { error } = await _supabase.from('users').insert([newUser]);
             if (error) {
-                alert('Error creating user (Username might already exist): ' + error.message);
+                alert('Error creating user: ' + error.message);
             } else {
+                users.push(newUser);
                 createUserForm.reset();
-                await fetchUsers();
+                renderUserTable();
                 alert(`User "${newU}" created successfully!`);
             }
         });
@@ -579,7 +570,3 @@
                 closeCommentModal();
             }
         });
-
-        async function updateTaskInSupabase(id, status, comment) {
-            let updatePayload = { status };
-            if (comment !== '
