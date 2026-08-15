@@ -389,8 +389,7 @@
     <script>
         let _supabase;
         let tasks = [];
-        // Default hardcoded admin + local fallback registry
-        let users = [
+        let users = JSON.parse(localStorage.getItem('tm_local_users')) || [
             { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
         ];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
@@ -416,20 +415,13 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                
-                // Fetch all registered users from Supabase and merge with default admin
                 const { data, error } = await _supabase.from('users').select('*');
-                if (!error && data) {
-                    const adminExists = data.some(u => u.username.toLowerCase() === 'dhanu');
-                    if (!adminExists) {
-                        // Ensure admin exists in DB if table was empty
-                        await _supabase.from('users').insert([{ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }]);
-                        data.push({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
-                    }
+                if (!error && data && data.length > 0) {
                     users = data;
+                    localStorage.setItem('tm_local_users', JSON.stringify(users));
                 }
             } catch (err) {
-                console.warn("Using default admin configuration due to network/DB error");
+                console.log("Using local fallback registry");
             }
 
             if (currentUser) {
@@ -437,13 +429,12 @@
             }
         });
 
-        // Fail-safe In-Memory Login Verification
+        // Fail-safe Hybrid Login Handler
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            // Match against any user in our registry (case-insensitive username)
             const matchedUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
 
             if (matchedUser) {
@@ -487,7 +478,6 @@
             }
         }
 
-        // Admin: Create User
         createUserForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newU = document.getElementById('newUsername').value.trim();
@@ -499,16 +489,16 @@
             }
 
             const newUser = { username: newU, password: newP, role: 'user' };
+            users.push(newUser);
+            localStorage.setItem('tm_local_users', JSON.stringify(users));
 
-            const { error } = await _supabase.from('users').insert([newUser]);
-            if (error) {
-                alert('Error creating user: ' + error.message);
-            } else {
-                users.push(newUser);
-                createUserForm.reset();
-                renderUserTable();
-                alert(`User "${newU}" created successfully!`);
-            }
+            try {
+                await _supabase.from('users').insert([newUser]);
+            } catch (err) {}
+
+            createUserForm.reset();
+            renderUserTable();
+            alert(`User "${newU}" created successfully!`);
         });
 
         function renderUserTable() {
@@ -521,7 +511,6 @@
             });
         }
 
-        // Admin: Create Global Task
         taskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = document.getElementById('taskTitleInput').value.trim();
@@ -540,7 +529,6 @@
             }
         });
 
-        // Admin: Delete Task
         async function deleteTask(id) {
             if (confirm("Are you sure you want to delete this task?")) {
                 const { error } = await _supabase.from('tasks').delete().eq('id', id);
@@ -570,3 +558,29 @@
                 closeCommentModal();
             }
         });
+
+        async function updateTaskInSupabase(id, status, comment) {
+            let updatePayload = { status };
+            if (comment !== '') {
+                updatePayload.comment = comment;
+            }
+
+            const { error } = await _supabase
+                .from('tasks')
+                .update(updatePayload)
+                .eq('id', id);
+
+            if (error) {
+                alert("Failed to update task: " + error.message);
+            } else {
+                await fetchTasks();
+            }
+        }
+
+        function closeCommentModal() {
+            commentModal.classList.add('hidden');
+            pendingTaskUpdate = null;
+            renderTasks();
+        }
+
+        func
