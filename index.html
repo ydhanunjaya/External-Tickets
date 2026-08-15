@@ -412,7 +412,6 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                await initAdmin();
                 if (currentUser) {
                     showApp();
                 }
@@ -421,40 +420,52 @@
             }
         });
 
-        async function initAdmin() {
-            const { data: adminExists } = await _supabase
-                .from('users')
-                .select('*')
-                .eq('username', 'Dhanu');
-            
-            if (!adminExists || adminExists.length === 0) {
-                await _supabase
-                    .from('users')
-                    .insert([{ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }]);
-            }
-        }
-
-        // Login Handler
+        // Robust Login Authentication
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            const { data, error } = await _supabase
-                .from('users')
-                .select('*')
-                .eq('username', u)
-                .eq('password', p)
-                .single();
-
-            if (data) {
-                currentUser = data;
+            // Check Admin Credentials
+            if (u === 'Dhanu' && p === 'Dhanu@2002') {
+                currentUser = { username: 'Dhanu', role: 'admin' };
                 sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
                 loginForm.reset();
                 showApp();
-            } else {
-                alert('Invalid username or password.');
+                return;
             }
+
+            // Check Supabase Users Table with fallback to local cache
+            try {
+                const { data, error } = await _supabase
+                    .from('users')
+                    .select('*')
+                    .eq('username', u)
+                    .eq('password', p)
+                    .maybeSingle();
+
+                if (data) {
+                    currentUser = data;
+                    sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
+                    loginForm.reset();
+                    showApp();
+                    return;
+                }
+            } catch (err) {
+                console.log("Supabase user check skipped, checking local fallback");
+            }
+
+            // Fallback check against cached users array
+            const foundLocalUser = users.find(user => user.username === u && user.password === p);
+            if (foundLocalUser) {
+                currentUser = foundLocalUser;
+                sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
+                loginForm.reset();
+                showApp();
+                return;
+            }
+
+            alert('Invalid username or password.');
         });
 
         function logout() {
@@ -509,7 +520,7 @@
                 .insert([{ username: newU, password: newP, role: 'user' }]);
 
             if (error) {
-                alert('Error creating user (Username might already exist).');
+                alert('Error creating user: ' + error.message);
             } else {
                 createUserForm.reset();
                 await fetchUsers();
@@ -571,101 +582,4 @@
         document.getElementById('commentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (pendingTaskUpdate) {
-                const commentText = workCommentInput.value.trim();
-                await updateTaskInSupabase(pendingTaskUpdate, 'Completed', commentText);
-                closeCommentModal();
-            }
-        });
-
-        async function updateTaskInSupabase(id, status, comment) {
-            let updatePayload = { status };
-            if (comment !== '') {
-                updatePayload.comment = comment;
-            }
-
-            const { error } = await _supabase
-                .from('tasks')
-                .update(updatePayload)
-                .eq('id', id);
-
-            if (error) {
-                alert("Failed to update task: " + error.message);
-            } else {
-                await fetchTasks();
-            }
-        }
-
-        function closeCommentModal() {
-            commentModal.classList.add('hidden');
-            pendingTaskUpdate = null;
-            renderTasks();
-        }
-
-        function filterTasks(status) {
-            currentFilter = status;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if(btn.textContent.includes(status) || (status === 'All' && btn.textContent === 'All Tasks')) {
-                    btn.classList.add('active');
-                }
-            });
-            renderTasks();
-        }
-
-        function renderTasks() {
-            taskListContainer.innerHTML = '';
-
-            const filteredTasks = tasks.filter(task => {
-                if (currentFilter === 'All') return true;
-                return task.status === currentFilter;
-            });
-
-            if (filteredTasks.length === 0) {
-                taskListContainer.innerHTML = `<div style="text-align:center; color: var(--text-muted); padding: 2rem; font-style:italic;">No tasks available.</div>`;
-                return;
-            }
-
-            filteredTasks.forEach(task => {
-                const item = document.createElement('div');
-                item.className = 'task-item';
-
-                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details / Comment:</strong> ${escapeHTML(task.comment)}</div>` : '';
-
-                let deleteBtnHTML = currentUser.role === 'admin' ? `<button class="delete-btn" onclick="deleteTask(${task.id})">Delete Task</button>` : '';
-
-                let controlsHTML = `
-                    <div class="task-controls">
-                        <span class="status-badge badge-${task.status}">${task.status}</span>
-                        <select class="task-select" onchange="handleStatusChange(${task.id}, this.value)">
-                            <option value="" disabled selected>Change status</option>
-                            <option value="Open">Open</option>
-                            <option value="Working">Working</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                        ${deleteBtnHTML}
-                    </div>
-                `;
-
-                item.innerHTML = `
-                    <div class="task-header">
-                        <div>
-                            <div class="task-title">${escapeHTML(task.title)}</div>
-                            <div class="task-deadline">📅 Due by: ${task.deadline}</div>
-                        </div>
-                        ${controlsHTML}
-                    </div>
-                    ${commentHTML}
-                `;
-                taskListContainer.appendChild(item);
-            });
-        }
-
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-    </script>
-</body>
-</html>
+   
