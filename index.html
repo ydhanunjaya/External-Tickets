@@ -9,74 +9,330 @@
         window.createClient = createClient;
     </script>
     <style>
-        :root { --primary: #4f46e5; --primary-hover: #4338ca; --bg-color: #f8fafc; --card-bg: #ffffff; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --status-open: #3b82f6; --status-working: #eab308; --status-completed: #22c55e; --status-cancelled: #ef4444; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); padding: 2rem 1rem; }
-        .container { max-width: 900px; margin: 0 auto; }
-        header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 1rem 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
-        .card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); padding: 1.5rem; margin-bottom: 2rem; }
-        h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-main); }
-        .form-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-        @media(min-width: 768px) { .form-grid { grid-template-columns: 2fr 1fr auto; } }
-        .form-group { display: flex; flex-direction: column; }
-        label { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
-        input, textarea, select { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; width: 100%; }
-        button { background-color: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; border-radius: 8px; cursor: pointer; }
-        button:hover { background-color: var(--primary-hover); }
-        .btn-secondary { background-color: #64748b; }
-        .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .filter-btn { background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-        .filter-btn.active { background: var(--primary); color: white; }
-        .task-list { display: flex; flex-direction: column; gap: 1rem; }
-        .task-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: white; }
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            
+            --status-open: #3b82f6;
+            --status-working: #eab308;
+            --status-completed: #22c55e;
+            --status-cancelled: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media(min-width: 768px) {
+            .form-grid {
+                grid-template-columns: 2fr 1fr auto;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        input[type="text"], input[type="password"], input[type="date"], textarea, select {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            align-self: flex-end;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #64748b;
+        }
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--card-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .task-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .task-deadline {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .task-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: white;
+        }
+
         .badge-Open { background-color: var(--status-open); }
         .badge-Working { background-color: var(--status-working); }
         .badge-Completed { background-color: var(--status-completed); }
         .badge-Cancelled { background-color: var(--status-cancelled); }
-        .hidden { display: none !important; }
-        .user-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        .user-table th, .user-table td { border: 1px solid var(--border); padding: 0.75rem; text-align: left; }
+
+        .comment-section {
+            background: #f1f5f9;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .comment-section strong {
+            color: var(--primary);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .user-table th, .user-table td {
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .user-table th {
+            background-color: #f1f5f9;
+        }
     </style>
 </head>
 <body>
 
+    <!-- MAIN APP DASHBOARD -->
     <div id="appScreen" class="container">
         <header>
-            <h1>Task Manager</h1>
+            <div>
+                <h1 id="appTitle">Task Manager</h1>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Workspace Dashboard</p>
+            </div>
         </header>
 
+        <!-- ADMIN SECTION: Create Users -->
         <div id="adminUserSection" class="card">
             <h2>Create New User Account</h2>
             <form id="createUserForm" class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
-                <input type="text" id="newUsername" required placeholder="New username">
-                <input type="password" id="newPassword" required placeholder="New password">
-                <button type="submit">Create User</button>
+                <div class="form-group">
+                    <label for="newUsername">Username</label>
+                    <input type="text" id="newUsername" required placeholder="New username">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Password</label>
+                    <input type="password" id="newPassword" required placeholder="New password">
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button type="submit">Create User</button>
+                </div>
             </form>
-            <table class="user-table" id="userTable">
-                <thead><tr><th>Username</th><th>Role</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div style="margin-top: 1.5rem;">
+                <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Existing Users</h3>
+                <table class="user-table" id="userTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
 
+        <!-- ADMIN SECTION: Create Tasks -->
         <div id="adminTaskSection" class="card">
             <h2>Create Global Task</h2>
             <form id="taskForm" class="form-grid">
-                <input type="text" id="taskTitleInput" placeholder="Task Name" required>
-                <input type="date" id="taskDeadlineInput" required>
-                <button type="submit">Publish Task</button>
+                <div class="form-group">
+                    <label for="taskTitleInput">Task Name</label>
+                    <input type="text" id="taskTitleInput" placeholder="e.g., Update system security" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskDeadlineInput">Deadline</label>
+                    <input type="date" id="taskDeadlineInput" required>
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button type="submit">Publish Task</button>
+                </div>
             </form>
         </div>
 
+        <!-- TASK VIEW SECTION -->
         <div class="card">
             <h2>Task Workspace</h2>
-            <div class="filters" id="filters">
-                <button class="filter-btn active" onclick="filterTasks('All')">All</button>
+            <div class="filters">
+                <button class="filter-btn active" onclick="filterTasks('All')">All Tasks</button>
                 <button class="filter-btn" onclick="filterTasks('Open')">Open</button>
                 <button class="filter-btn" onclick="filterTasks('Working')">Working</button>
                 <button class="filter-btn" onclick="filterTasks('Completed')">Completed</button>
+                <button class="filter-btn" onclick="filterTasks('Cancelled')">Cancelled</button>
             </div>
+
             <div class="task-list" id="taskList"></div>
+        </div>
+    </div>
+
+    <!-- MODAL FOR COMPLETION COMMENT -->
+    <div id="commentModal" class="hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;">
+        <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
+            <h2>Work Details Required</h2>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Please provide details regarding completed work.</p>
+            <form id="commentForm">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="workComment">Work Summary / Comments</label>
+                    <textarea id="workComment" rows="4" required placeholder="Explain what was accomplished..."></textarea>
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn-secondary" onclick="closeCommentModal()" style="width: auto;">Cancel</button>
+                    <button type="submit" style="width: auto;">Submit Completion</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -84,75 +340,192 @@
         let _supabase;
         let tasks = [];
         let users = [];
+        let currentFilter = 'All';
+        let pendingTaskUpdate = null;
+
+        const taskForm = document.getElementById('taskForm');
+        const createUserForm = document.getElementById('createUserForm');
+        const taskListContainer = document.getElementById('taskList');
+        const commentModal = document.getElementById('commentModal');
+        const workCommentInput = document.getElementById('workComment');
+
+        document.getElementById('taskDeadlineInput').valueAsDate = new Date();
 
         window.addEventListener('DOMContentLoaded', async () => {
-            _supabase = window.createClient('https://zgetzwielvoqvqyfrimp.supabase.co', 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW');
-            await initAdmin();
-            await fetchUsers();
-            await fetchTasks();
-        });
+            const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
 
-        async function initAdmin() {
-            const { data: adminExists } = await _supabase.from('users').select('*').eq('username', 'Dhanu');
-            if (!adminExists || adminExists.length === 0) {
-                await _supabase.from('users').insert([{ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }]);
+            try {
+                _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                await fetchUsers();
+                await fetchTasks();
+            } catch (err) {
+                console.error("Failed to initialize Supabase:", err);
             }
-        }
+        });
 
         async function fetchUsers() {
             const { data } = await _supabase.from('users').select('*');
             if (data) {
                 users = data;
-                const tbody = document.querySelector('#userTable tbody');
-                tbody.innerHTML = users.map(u => `<tr><td>${u.username}</td><td>${u.role}</td></tr>`).join('');
+                renderUserTable();
             }
         }
 
         async function fetchTasks() {
             const { data } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
-            tasks = data || [];
-            renderTasks('All');
+            if (data) {
+                tasks = data;
+                renderTasks();
+            }
         }
 
-        function renderTasks(filter) {
-            const list = document.getElementById('taskList');
-            const filtered = filter === 'All' ? tasks : tasks.filter(t => t.status === filter);
-            list.innerHTML = filtered.map(t => `
-                <div class="task-item">
-                    <div class="task-header">
-                        <strong>${t.title}</strong>
-                        <span class="status-badge badge-${t.status}">${t.status}</span>
+        createUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newU = document.getElementById('newUsername').value.trim();
+            const newP = document.getElementById('newPassword').value.trim();
+
+            const { error } = await _supabase
+                .from('users')
+                .insert([{ username: newU, password: newP, role: 'user' }]);
+
+            if (error) {
+                alert('Error creating user (Username might already exist).');
+            } else {
+                createUserForm.reset();
+                await fetchUsers();
+                alert(`User "${newU}" created successfully!`);
+            }
+        });
+
+        function renderUserTable() {
+            const tbody = document.querySelector('#userTable tbody');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${u.username}</td><td>${u.role.toUpperCase()}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('taskTitleInput').value.trim();
+            const deadline = document.getElementById('taskDeadlineInput').value;
+
+            const { error } = await _supabase
+                .from('tasks')
+                .insert([{ title, deadline, status: 'Open', comment: '' }]);
+
+            if (!error) {
+                taskForm.reset();
+                document.getElementById('taskDeadlineInput').valueAsDate = new Date();
+                await fetchTasks();
+            }
+        });
+
+        function handleStatusChange(taskId, newStatus) {
+            if (newStatus === 'Completed') {
+                pendingTaskUpdate = taskId;
+                workCommentInput.value = '';
+                commentModal.classList.remove('hidden');
+            } else {
+                updateTaskInSupabase(taskId, newStatus, '');
+            }
+        }
+
+        document.getElementById('commentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (pendingTaskUpdate) {
+                const commentText = workCommentInput.value.trim();
+                await updateTaskInSupabase(pendingTaskUpdate, 'Completed', commentText);
+                closeCommentModal();
+            }
+        });
+
+        async function updateTaskInSupabase(id, status, comment) {
+            let updatePayload = { status };
+            if (comment !== '') {
+                updatePayload.comment = comment;
+            }
+
+            const { error } = await _supabase
+                .from('tasks')
+                .update(updatePayload)
+                .eq('id', id);
+
+            if (!error) {
+                await fetchTasks();
+            }
+        }
+
+        function closeCommentModal() {
+            commentModal.classList.add('hidden');
+            pendingTaskUpdate = null;
+            renderTasks();
+        }
+
+        function filterTasks(status) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.textContent.includes(status) || (status === 'All' && btn.textContent === 'All Tasks')) {
+                    btn.classList.add('active');
+                }
+            });
+            renderTasks();
+        }
+
+        function renderTasks() {
+            taskListContainer.innerHTML = '';
+
+            const filteredTasks = tasks.filter(task => {
+                if (currentFilter === 'All') return true;
+                return task.status === currentFilter;
+            });
+
+            if (filteredTasks.length === 0) {
+                taskListContainer.innerHTML = `<div style="text-align:center; color: var(--text-muted); padding: 2rem; font-style:italic;">No tasks available.</div>`;
+                return;
+            }
+
+            filteredTasks.forEach(task => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+
+                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details / Comment:</strong> ${escapeHTML(task.comment)}</div>` : '';
+
+                let controlsHTML = `
+                    <div class="task-controls">
+                        <span class="status-badge badge-${task.status}">${task.status}</span>
+                        <select class="task-select" onchange="handleStatusChange(${task.id}, this.value)">
+                            <option value="" disabled selected>Change status</option>
+                            <option value="Open">Open</option>
+                            <option value="Working">Working</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
                     </div>
-                    <p>Due: ${t.deadline}</p>
-                    <select onchange="updateTask(${t.id}, this.value)">
-                        <option value="Open" ${t.status==='Open'?'selected':''}>Open</option>
-                        <option value="Working" ${t.status==='Working'?'selected':''}>Working</option>
-                        <option value="Completed" ${t.status==='Completed'?'selected':''}>Completed</option>
-                    </select>
-                </div>
-            `).join('');
+                `;
+
+                item.innerHTML = `
+                    <div class="task-header">
+                        <div>
+                            <div class="task-title">${escapeHTML(task.title)}</div>
+                            <div class="task-deadline">📅 Due by: ${task.deadline}</div>
+                        </div>
+                        ${controlsHTML}
+                    </div>
+                    ${commentHTML}
+                `;
+                taskListContainer.appendChild(item);
+            });
         }
 
-        async function updateTask(id, status) {
-            await _supabase.from('tasks').update({ status }).eq('id', id);
-            await fetchTasks();
-        }
-
-        document.getElementById('taskForm').onsubmit = async (e) => {
-            e.preventDefault();
-            await _supabase.from('tasks').insert([{ title: document.getElementById('taskTitleInput').value, deadline: document.getElementById('taskDeadlineInput').value }]);
-            await fetchTasks();
-        }
-
-        document.getElementById('createUserForm').onsubmit = async (e) => {
-            e.preventDefault();
-            await _supabase.from('users').insert([{ username: document.getElementById('newUsername').value, password: document.getElementById('newPassword').value, role: 'user' }]);
-            await fetchUsers();
-        }
-
-        function filterTasks(f) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.innerText === f));
-            renderTasks(f);
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
         }
     </script>
 </body>
