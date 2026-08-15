@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager with Supabase</title>
+    <!-- Include Supabase JS SDK CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            
+            --status-open: #3b82f6;
+            --status-working: #eab308;
+            --status-completed: #22c55e;
+            --status-cancelled: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media(min-width: 768px) {
+            .form-grid {
+                grid-template-columns: 2fr 1fr auto;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        input[type="text"], input[type="password"], input[type="date"], textarea, select {
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            align-self: flex-end;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #64748b;
+        }
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        .login-wrapper {
+            max-width: 400px;
+            margin: 4rem auto;
+        }
+
+        .login-wrapper h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--card-bg);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .task-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .task-deadline {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .task-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .badge-Open { background-color: var(--status-open); }
+        .badge-Working { background-color: var(--status-working); }
+        .badge-Completed { background-color: var(--status-completed); }
+        .badge-Cancelled { background-color: var(--status-cancelled); }
+
+        .comment-section {
+            background: #f1f5f9;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .comment-section strong {
+            color: var(--primary);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .user-table th, .user-table td {
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .user-table th {
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-wrapper card">
+        <h1>Task Manager Login</h1>
+        <form id="loginForm" class="form-grid" style="grid-template-columns: 1fr;">
+            <div class="form-group">
+                <label for="loginUser">Username</label>
+                <input type="text" id="loginUser" required placeholder="Enter username">
+            </div>
+            <div class="form-group">
+                <label for="loginPass">Password</label>
+                <input type="password" id="loginPass" required placeholder="Enter password">
+            </div>
+            <div class="form-group" style="margin-top: 0.5rem;">
+                <button type="submit" style="width: 100%;">Login</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- MAIN APP SCREEN -->
+    <div id="appScreen" class="container hidden">
+        <header>
+            <div>
+                <h1 id="appTitle">Task Manager</h1>
+                <p id="welcomeUser" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+            </div>
+            <div class="user-info">
+                <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
+            </div>
+        </header>
+
+        <!-- ADMIN SECTION: Create Users -->
+        <div id="adminUserSection" class="card hidden">
+            <h2>Create New User Account</h2>
+            <form id="createUserForm" class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
+                <div class="form-group">
+                    <label for="newUsername">Username</label>
+                    <input type="text" id="newUsername" required placeholder="New username">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Password</label>
+                    <input type="password" id="newPassword" required placeholder="New password">
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button type="submit">Create User</button>
+                </div>
+            </form>
+            <div style="margin-top: 1.5rem;">
+                <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Existing Users</h3>
+                <table class="user-table" id="userTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ADMIN SECTION: Create Tasks -->
+        <div id="adminTaskSection" class="card hidden">
+            <h2>Create Global Task</h2>
+            <form id="taskForm" class="form-grid">
+                <div class="form-group">
+                    <label for="taskTitleInput">Task Name</label>
+                    <input type="text" id="taskTitleInput" placeholder="e.g., Update system security" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskDeadlineInput">Deadline</label>
+                    <input type="date" id="taskDeadlineInput" required>
+                </div>
+                <div class="form-group" style="justify-content: flex-end;">
+                    <button type="submit">Publish Task</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- TASK VIEW SECTION -->
+        <div class="card">
+            <h2>Task Workspace</h2>
+            <div class="filters">
+                <button class="filter-btn active" onclick="filterTasks('All')">All Tasks</button>
+                <button class="filter-btn" onclick="filterTasks('Open')">Open</button>
+                <button class="filter-btn" onclick="filterTasks('Working')">Working</button>
+                <button class="filter-btn" onclick="filterTasks('Completed')">Completed</button>
+                <button class="filter-btn" onclick="filterTasks('Cancelled')">Cancelled</button>
+            </div>
+
+            <div class="task-list" id="taskList"></div>
+        </div>
+    </div>
+
+    <!-- MODAL FOR COMPLETION COMMENT -->
+    <div id="commentModal" class="hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;">
+        <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
+            <h2>Work Details Required</h2>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">Please provide details regarding completed work.</p>
+            <form id="commentForm">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label for="workComment">Work Summary / Comments</label>
+                    <textarea id="workComment" rows="4" required placeholder="Explain what was accomplished..."></textarea>
+                </div>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="btn-secondary" onclick="closeCommentModal()" style="width: auto;">Cancel</button>
+                    <button type="submit" style="width: auto;">Submit Completion</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- SUPABASE CONFIGURATION ---
+        const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
+        
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let tasks = [];
+        let users = [];
+        let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
+        let currentFilter = 'All';
+        let pendingTaskUpdate = null;
+
+        const loginScreen = document.getElementById('loginScreen');
+        const appScreen = document.getElementById('appScreen');
+        const loginForm = document.getElementById('loginForm');
+        const adminUserSection = document.getElementById('adminUserSection');
+        const adminTaskSection = document.getElementById('adminTaskSection');
+        const taskForm = document.getElementById('taskForm');
+        const createUserForm = document.getElementById('createUserForm');
+        const taskListContainer = document.getElementById('taskList');
+        const commentModal = document.getElementById('commentModal');
+        const workCommentInput = document.getElementById('workComment');
+
+        document.getElementById('taskDeadlineInput').valueAsDate = new Date();
+
+        if (currentUser) {
+            showApp();
+        }
+
+        // Login Authentication with Supabase
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
+
+            const { data, error } = await _supabase
+                .from('users')
+                .select('*')
+                .eq('username', u)
+                .eq('password', p)
+                .single();
+
+            if (data) {
+                currentUser = data;
+                sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
+                loginForm.reset();
+                showApp();
+            } else {
+                alert('Invalid username or password.');
+            }
+        });
+
+        function logout() {
+            currentUser = null;
+            sessionStorage.removeItem('tm_current_user');
+            appScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        }
+
+        async function showApp() {
+            loginScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
+
+            if (currentUser.role === 'admin') {
+                adminUserSection.classList.remove('hidden');
+                adminTaskSection.classList.remove('hidden');
+                await fetchUsers();
+            } else {
+                adminUserSection.classList.add('hidden');
+                adminTaskSection.classList.add('hidden');
+            }
+            await fetchTasks();
+        }
+
+        async function fetchUsers() {
+            const { data } = await _supabase.from('users').select('*');
+            if (data) {
+                users = data;
+                renderUserTable();
+            }
+        }
+
+        async function fetchTasks() {
+            const { data } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
+            if (data) {
+                tasks = data;
+                renderTasks();
+            }
+        }
+
+        // Admin: Create User
+        createUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newU = document.getElementById('newUsername').value.trim();
+            const newP = document.getElementById('newPassword').value.trim();
+
+            const { error } = await _supabase
+                .from('users')
+                .insert([{ username: newU, password: newP, role: 'user' }]);
+
+            if (error) {
+                alert('Error creating user (Username might already exist).');
+            } else {
+                createUserForm.reset();
+                await fetchUsers();
+                alert(`User "${newU}" created successfully!`);
+            }
+        });
+
+        function renderUserTable() {
+            const tbody = document.querySelector('#userTable tbody');
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${u.username}</td><td>${u.role.toUpperCase()}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Admin: Create Global Task
+        taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('taskTitleInput').value.trim();
+            const deadline = document.getElementById('taskDeadlineInput').value;
+
+            const { error } = await _supabase
+                .from('tasks')
+                .insert([{ title, deadline, status: 'Open', comment: '' }]);
+
+            if (!error) {
+                taskForm.reset();
+                document.getElementById('taskDeadlineInput').valueAsDate = new Date();
+                await fetchTasks();
+            }
+        });
+
+        function handleStatusChange(taskId, newStatus) {
+            if (newStatus === 'Completed') {
+                pendingTaskUpdate = taskId;
+                workCommentInput.value = '';
+                commentModal.classList.remove('hidden');
+            } else {
+                updateTaskInSupabase(taskId, newStatus, '');
+            }
+        }
+
+        document.getElementById('commentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (pendingTaskUpdate) {
+                const commentText = workCommentInput.value.trim();
+                await updateTaskInSupabase(pendingTaskUpdate, 'Completed', commentText);
+                closeCommentModal();
+            }
+        });
+
+        async function updateTaskInSupabase(id, status, comment) {
+            let updatePayload = { status };
+            if (comment !== '') {
+                updatePayload.comment = comment;
+            }
+
+            const { error } = await _supabase
+                .from('tasks')
+                .update(updatePayload)
+                .eq('id', id);
+
+            if (!error) {
+                await fetchTasks();
+            }
+        }
+
+        function closeCommentModal() {
+            commentModal.classList.add('hidden');
+            pendingTaskUpdate = null;
+            renderTasks();
+        }
+
+        function filterTasks(status) {
+            currentFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.textContent.includes(status) || (status === 'All' && btn.textContent === 'All Tasks')) {
+                    btn.classList.add('active');
+                }
+            });
+            renderTasks();
+        }
+
+        function renderTasks() {
+            taskListContainer.innerHTML = '';
+
+            const filteredTasks = tasks.filter(task => {
+                if (currentFilter === 'All') return true;
+                return task.status === currentFilter;
+            });
+
+            if (filteredTasks.length === 0) {
+                taskListContainer.innerHTML = `<div style="text-align:center; color: var(--text-muted); padding: 2rem; font-style:italic;">No tasks available.</div>`;
+                return;
+            }
+
+            filteredTasks.forEach(task => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+
+                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details / Comment:</strong> ${escapeHTML(task.comment)}</div>` : '';
+
+                let controlsHTML = `
+                    <div class="task-cont
