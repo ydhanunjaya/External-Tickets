@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager with Supabase</title>
-    <!-- Include Supabase JS SDK CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Correct ES Module CDN for Supabase -->
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        window.createClient = createClient;
+    </script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -373,13 +376,7 @@
     </div>
 
     <script>
-        // --- SUPABASE CONFIGURATION ---
-        const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
-        
-        const { createClient } = supabase;
-        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+        let _supabase;
         let tasks = [];
         let users = [];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
@@ -399,9 +396,20 @@
 
         document.getElementById('taskDeadlineInput').valueAsDate = new Date();
 
-        if (currentUser) {
-            showApp();
-        }
+        // Initialize Supabase after module script loads
+        window.addEventListener('DOMContentLoaded', async () => {
+            const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
+
+            try {
+                _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                if (currentUser) {
+                    showApp();
+                }
+            } catch (err) {
+                console.error("Failed to initialize Supabase:", err);
+            }
+        });
 
         // Login Authentication with Supabase
         loginForm.addEventListener('submit', async (e) => {
@@ -583,4 +591,37 @@
                 let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details / Comment:</strong> ${escapeHTML(task.comment)}</div>` : '';
 
                 let controlsHTML = `
-                    <div class="task-cont
+                    <div class="task-controls">
+                        <span class="status-badge badge-${task.status}">${task.status}</span>
+                        <select class="task-select" onchange="handleStatusChange(${task.id}, this.value)">
+                            <option value="" disabled selected>Change status</option>
+                            <option value="Open">Open</option>
+                            <option value="Working">Working</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                `;
+
+                item.innerHTML = `
+                    <div class="task-header">
+                        <div>
+                            <div class="task-title">${escapeHTML(task.title)}</div>
+                            <div class="task-deadline">📅 Due by: ${task.deadline}</div>
+                        </div>
+                        ${controlsHTML}
+                    </div>
+                    ${commentHTML}
+                `;
+                taskListContainer.appendChild(item);
+            });
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
