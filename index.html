@@ -59,12 +59,6 @@
             font-size: 1.5rem;
         }
 
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
         .card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -139,17 +133,6 @@
         }
         .btn-secondary:hover {
             background-color: #475569;
-        }
-
-        .login-wrapper {
-            max-width: 400px;
-            margin: 4rem auto;
-        }
-
-        .login-wrapper h1 {
-            text-align: center;
-            color: var(--primary);
-            margin-bottom: 1.5rem;
         }
 
         .filters {
@@ -264,38 +247,17 @@
 </head>
 <body>
 
-    <!-- LOGIN SCREEN -->
-    <div id="loginScreen" class="login-wrapper card">
-        <h1>Task Manager Login</h1>
-        <form id="loginForm" class="form-grid" style="grid-template-columns: 1fr;">
-            <div class="form-group">
-                <label for="loginUser">Username</label>
-                <input type="text" id="loginUser" required placeholder="Enter username">
-            </div>
-            <div class="form-group">
-                <label for="loginPass">Password</label>
-                <input type="password" id="loginPass" required placeholder="Enter password">
-            </div>
-            <div class="form-group" style="margin-top: 0.5rem;">
-                <button type="submit" style="width: 100%;">Login</button>
-            </div>
-        </form>
-    </div>
-
     <!-- MAIN APP SCREEN -->
-    <div id="appScreen" class="container hidden">
+    <div id="appScreen" class="container">
         <header>
             <div>
                 <h1 id="appTitle">Task Manager</h1>
-                <p id="welcomeUser" style="color: var(--text-muted); font-size: 0.9rem;"></p>
-            </div>
-            <div class="user-info">
-                <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
+                <p id="welcomeUser" style="color: var(--text-muted); font-size: 0.9rem;">Workspace Dashboard</p>
             </div>
         </header>
 
         <!-- ADMIN SECTION: Create Users -->
-        <div id="adminUserSection" class="card hidden">
+        <div id="adminUserSection" class="card">
             <h2>Create New User Account</h2>
             <form id="createUserForm" class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
                 <div class="form-group">
@@ -325,7 +287,7 @@
         </div>
 
         <!-- ADMIN SECTION: Create Tasks -->
-        <div id="adminTaskSection" class="card hidden">
+        <div id="adminTaskSection" class="card">
             <h2>Create Global Task</h2>
             <form id="taskForm" class="form-grid">
                 <div class="form-group">
@@ -379,15 +341,9 @@
         let _supabase;
         let tasks = [];
         let users = [];
-        let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
         let currentFilter = 'All';
         let pendingTaskUpdate = null;
 
-        const loginScreen = document.getElementById('loginScreen');
-        const appScreen = document.getElementById('appScreen');
-        const loginForm = document.getElementById('loginForm');
-        const adminUserSection = document.getElementById('adminUserSection');
-        const adminTaskSection = document.getElementById('adminTaskSection');
         const taskForm = document.getElementById('taskForm');
         const createUserForm = document.getElementById('createUserForm');
         const taskListContainer = document.getElementById('taskList');
@@ -396,66 +352,18 @@
 
         document.getElementById('taskDeadlineInput').valueAsDate = new Date();
 
-        // Initialize Supabase after module script loads
         window.addEventListener('DOMContentLoaded', async () => {
             const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
             const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                if (currentUser) {
-                    showApp();
-                }
+                await fetchUsers();
+                await fetchTasks();
             } catch (err) {
                 console.error("Failed to initialize Supabase:", err);
             }
         });
-
-        // Login Authentication with Supabase
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const u = document.getElementById('loginUser').value.trim();
-            const p = document.getElementById('loginPass').value.trim();
-
-            const { data, error } = await _supabase
-                .from('users')
-                .select('*')
-                .eq('username', u)
-                .eq('password', p)
-                .single();
-
-            if (data) {
-                currentUser = data;
-                sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
-                loginForm.reset();
-                showApp();
-            } else {
-                alert('Invalid username or password.');
-            }
-        });
-
-        function logout() {
-            currentUser = null;
-            sessionStorage.removeItem('tm_current_user');
-            appScreen.classList.add('hidden');
-            loginScreen.classList.remove('hidden');
-        }
-
-        async function showApp() {
-            loginScreen.classList.add('hidden');
-            appScreen.classList.remove('hidden');
-            document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
-
-            if (currentUser.role === 'admin') {
-                adminUserSection.classList.remove('hidden');
-                adminTaskSection.classList.remove('hidden');
-                await fetchUsers();
-            } else {
-                adminUserSection.classList.add('hidden');
-                adminTaskSection.classList.add('hidden');
-            }
-            await fetchTasks();
-        }
 
         async function fetchUsers() {
             const { data } = await _supabase.from('users').select('*');
@@ -473,7 +381,6 @@
             }
         }
 
-        // Admin: Create User
         createUserForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newU = document.getElementById('newUsername').value.trim();
@@ -502,7 +409,6 @@
             });
         }
 
-        // Admin: Create Global Task
         taskForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = document.getElementById('taskTitleInput').value.trim();
