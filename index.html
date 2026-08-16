@@ -51,9 +51,9 @@
         .delete-btn { background: #ef4444; padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 6px; }
         .delete-btn:hover { background: #dc2626; }
         .hidden { display: none !important; }
-        .user-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        .user-table th, .user-table td { border: 1px solid var(--border); padding: 0.75rem; text-align: left; font-size: 0.9rem; }
-        .user-table th { background-color: #f1f5f9; }
+        .user-table, .log-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .user-table th, .user-table td, .log-table th, .log-table td { border: 1px solid var(--border); padding: 0.75rem; text-align: left; font-size: 0.9rem; }
+        .user-table th, .log-table th { background-color: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -85,6 +85,25 @@
             </div>
             <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
         </header>
+
+        <!-- ADMIN: ACTIVITY AUDIT LOG -->
+        <div id="adminLogSection" class="card hidden">
+            <h2>Activity Audit Log (Admin View)</h2>
+            <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">Shows which user updated task statuses and what comments they left.</p>
+            <div style="max-height: 200px; overflow-y: auto;">
+                <table class="log-table" id="logTable">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Updated By</th>
+                            <th>Status</th>
+                            <th>Comment / Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
 
         <!-- ADMIN: CREATE USER -->
         <div id="adminUserSection" class="card hidden">
@@ -240,10 +259,13 @@
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
 
             if (currentUser.role.toLowerCase() === 'admin') {
+                document.getElementById('adminLogSection').classList.remove('hidden');
                 document.getElementById('adminUserSection').classList.remove('hidden');
                 document.getElementById('adminTaskSection').classList.remove('hidden');
                 renderUserTable();
+                renderAuditLog();
             } else {
+                document.getElementById('adminLogSection').classList.add('hidden');
                 document.getElementById('adminUserSection').classList.add('hidden');
                 document.getElementById('adminTaskSection').classList.add('hidden');
             }
@@ -256,6 +278,9 @@
                 if (data) {
                     tasks = data;
                     renderTasks();
+                    if (currentUser && currentUser.role.toLowerCase() === 'admin') {
+                        renderAuditLog();
+                    }
                 }
             } catch (err) {
                 console.error("Task fetch error:", err);
@@ -309,6 +334,28 @@
                     ? `<button class="delete-btn" onclick="deleteUser(${u.id}, '${u.username}')">Delete</button>`
                     : '<span style="color:var(--muted); font-size:0.85rem;">Protected</span>';
                 tbody.innerHTML += `<tr><td>${u.username}</td><td>${u.role.toUpperCase()}</td><td>${action}</td></tr>`;
+            });
+        }
+
+        function renderAuditLog() {
+            const tbody = document.querySelector('#logTable tbody');
+            tbody.innerHTML = '';
+            
+            const updatedTasks = tasks.filter(t => t.last_updated_by);
+            if (updatedTasks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--muted); font-style:italic;">No activity logged yet.</td></tr>`;
+                return;
+            }
+
+            updatedTasks.forEach(task => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${task.title}</strong></td>
+                        <td>👤 ${task.last_updated_by}</td>
+                        <td><span class="status-badge badge-${task.status}">${task.status}</span></td>
+                        <td>${task.comment || '<span style="color:var(--muted);">-</span>'}</td>
+                    </tr>
+                `;
             });
         }
 
@@ -410,4 +457,23 @@
                                 ${loggerHTML}
                             </div>
                             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                                <span class="status-badge badge-${task.
+                                <span class="status-badge badge-${task.status}">${task.status}</span>
+                                <select onchange="handleStatusChange(${task.id}, this.value)">
+                                    <option value="" disabled selected>Change status</option>
+                                    <option value="Open">Open</option>
+                                    <option value="Working">Working</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                                ${deleteBtn}
+                            </div>
+                        </div>
+                        ${commentHTML}
+                    </div>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
+
