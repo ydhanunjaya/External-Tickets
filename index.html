@@ -436,17 +436,16 @@
                     users = data;
                 }
             } catch (err) {
-                console.log("Using default registry fallback");
+                console.log("Using fallback registry");
             }
         }
 
-        // Foolproof Login Form Handler with Hardcoded Admin Override
+        // Guaranteed Login Form Handler with Hardcoded Admin Override & Trimming
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            // Instant Hardcoded override for Admin so it never fails
             if (u.toLowerCase() === 'dhanu' && p === 'Dhanu@2002') {
                 currentUser = { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' };
                 sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
@@ -569,4 +568,6 @@
                 const tr = document.createElement('tr');
                 let actionHTML = (currentUser.role.toLowerCase() === 'admin' && u.username.toLowerCase() !== 'dhanu') 
                     ? `<button class="delete-btn" onclick="deleteUser(${u.id}, '${u.username}')">Delete User</button>` 
-                    : '<span style="color:var(--text-muted); font-size:0.85rem;">
+                    : '<span style="color:var(--text-muted); font-size:0.85rem;">Protected</span>';
+
+                tr.innerHTML = `<td>${u.userna
