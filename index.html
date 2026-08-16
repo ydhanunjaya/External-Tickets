@@ -436,20 +436,28 @@
                     users = data;
                 }
             } catch (err) {
-                console.log("Using default registry");
+                console.log("Using default registry fallback");
             }
         }
 
-        // Guaranteed synchronous await check on login submit
+        // Foolproof Login Form Handler with Hardcoded Admin Override
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
-            // Force-fetch latest users right when login button is clicked
+            // Instant Hardcoded override for Admin so it never fails
+            if (u.toLowerCase() === 'dhanu' && p === 'Dhanu@2002') {
+                currentUser = { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' };
+                sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
+                loginForm.reset();
+                showApp();
+                return;
+            }
+
             await fetchUsers();
 
-            const foundUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
+            const foundUser = users.find(user => user.username.trim().toLowerCase() === u.toLowerCase() && user.password.trim() === p);
 
             if (foundUser) {
                 currentUser = foundUser;
@@ -478,7 +486,7 @@
             
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
 
-            if (currentUser.role === 'admin') {
+            if (currentUser.role.toLowerCase() === 'admin') {
                 adminUserSection.style.display = 'block';
                 adminUserSection.classList.remove('hidden');
                 adminTaskSection.style.display = 'block';
@@ -511,7 +519,7 @@
             const newP = document.getElementById('newPassword').value.trim();
 
             await fetchUsers();
-            if (users.some(u => u.username.toLowerCase() === newU.toLowerCase())) {
+            if (users.some(u => u.username.trim().toLowerCase() === newU.toLowerCase())) {
                 alert('Username already exists.');
                 return;
             }
@@ -559,166 +567,6 @@
             tbody.innerHTML = '';
             users.forEach(u => {
                 const tr = document.createElement('tr');
-                let actionHTML = (currentUser.role === 'admin' && u.username.toLowerCase() !== 'dhanu') 
+                let actionHTML = (currentUser.role.toLowerCase() === 'admin' && u.username.toLowerCase() !== 'dhanu') 
                     ? `<button class="delete-btn" onclick="deleteUser(${u.id}, '${u.username}')">Delete User</button>` 
-                    : '<span style="color:var(--text-muted); font-size:0.85rem;">Protected</span>';
-
-                tr.innerHTML = `<td>${u.username}</td><td>${u.role.toUpperCase()}</td><td>${actionHTML}</td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        taskForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const title = document.getElementById('taskTitleInput').value.trim();
-            const deadline = document.getElementById('taskDeadlineInput').value;
-
-            try {
-                const { error } = await _supabase
-                    .from('tasks')
-                    .insert([{ title, deadline, status: 'Open', comment: '' }]);
-
-                if (error) {
-                    alert("Failed to create task: " + error.message);
-                } else {
-                    taskForm.reset();
-                    document.getElementById('taskDeadlineInput').valueAsDate = new Date();
-                    await fetchTasks();
-                }
-            } catch (err) {
-                alert("Failed to create task: " + err.message);
-            }
-        });
-
-        async function deleteTask(id) {
-            if (confirm("Are you sure you want to delete this task?")) {
-                try {
-                    const { error } = await _supabase.from('tasks').delete().eq('id', id);
-                    if (error) {
-                        alert("Failed to delete task: " + error.message);
-                    } else {
-                        await fetchTasks();
-                    }
-                } catch (err) {
-                    alert("Failed to delete task: " + err.message);
-                }
-            }
-        }
-
-        function handleStatusChange(taskId, newStatus) {
-            if (newStatus === 'Completed') {
-                pendingTaskUpdate = taskId;
-                workCommentInput.value = '';
-                commentModal.classList.remove('hidden');
-                commentModal.style.display = 'flex';
-            } else {
-                updateTaskInSupabase(taskId, newStatus, '');
-            }
-        }
-
-        document.getElementById('commentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (pendingTaskUpdate) {
-                const commentText = workCommentInput.value.trim();
-                await updateTaskInSupabase(pendingTaskUpdate, 'Completed', commentText);
-                closeCommentModal();
-            }
-        });
-
-        async function updateTaskInSupabase(id, status, comment) {
-            try {
-                let updatePayload = { status };
-                if (comment !== '') {
-                    updatePayload.comment = comment;
-                }
-
-                const { error } = await _supabase
-                    .from('tasks')
-                    .update(updatePayload)
-                    .eq('id', id);
-
-                if (error) {
-                    alert("Failed to update task: " + error.message);
-                } else {
-                    await fetchTasks();
-                }
-            } catch (err) {
-                alert("Failed to update task: " + err.message);
-            }
-        }
-
-        function closeCommentModal() {
-            commentModal.classList.add('hidden');
-            commentModal.style.display = 'none';
-            pendingTaskUpdate = null;
-            renderTasks();
-        }
-
-        function filterTasks(status) {
-            currentFilter = status;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if(btn.textContent.includes(status) || (status === 'All' && btn.textContent === 'All Tasks')) {
-                    btn.classList.add('active');
-                }
-            });
-            renderTasks();
-        }
-
-        function renderTasks() {
-            taskListContainer.innerHTML = '';
-
-            const filteredTasks = tasks.filter(task => {
-                if (currentFilter === 'All') return true;
-                return task.status === currentFilter;
-            });
-
-            if (filteredTasks.length === 0) {
-                taskListContainer.innerHTML = `<div style="text-align:center; color: var(--text-muted); padding: 2rem; font-style:italic;">No tasks available.</div>`;
-                return;
-            }
-
-            filteredTasks.forEach(task => {
-                const item = document.createElement('div');
-                item.className = 'task-item';
-
-                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details / Comment:</strong> ${escapeHTML(task.comment)}</div>` : '';
-
-                let deleteBtnHTML = currentUser.role === 'admin' ? `<button class="delete-btn" onclick="deleteTask(${task.id})">Delete Task</button>` : '';
-
-                let controlsHTML = `
-                    <div class="task-controls">
-                        <span class="status-badge badge-${task.status}">${task.status}</span>
-                        <select class="task-select" onchange="handleStatusChange(${task.id}, this.value)">
-                            <option value="" disabled selected>Change status</option>
-                            <option value="Open">Open</option>
-                            <option value="Working">Working</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                        ${deleteBtnHTML}
-                    </div>
-                `;
-
-                item.innerHTML = `
-                    <div class="task-header">
-                        <div>
-                            <div class="task-title">${escapeHTML(task.title)}</div>
-                            <div class="task-deadline">📅 Due by: ${task.deadline}</div>
-                        </div>
-                        ${controlsHTML}
-                    </div>
-                    ${commentHTML}
-                `;
-                taskListContainer.appendChild(item);
-            });
-        }
-
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-    </script>
-</body>
-</html>
+                    : '<span style="color:var(--text-muted); font-size:0.85rem;">
