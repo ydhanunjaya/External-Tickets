@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Manager App</title>
+    <title>Task Manager App with Audit Log</title>
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         window.createClient = createClient;
@@ -47,7 +47,7 @@
         .badge-Working { background-color: #eab308; }
         .badge-Completed { background-color: #22c55e; }
         .badge-Cancelled { background-color: #ef4444; }
-        .comment-section { background: #f1f5f9; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; }
+        .comment-section { background: #f1f5f9; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-top: 0.5rem; }
         .delete-btn { background: #ef4444; padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 6px; }
         .delete-btn:hover { background: #dc2626; }
         .hidden { display: none !important; }
@@ -170,7 +170,9 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = [];
+        let users = JSON.parse(localStorage.getItem('tm_local_users')) || [
+            { id: 1, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
+        ];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_user')) || null;
         let currentFilter = 'All';
         let pendingTaskId = null;
@@ -193,14 +195,17 @@
         });
 
         async function fetchUsers() {
-            const { data } = await _supabase.from('users').select('*');
-            if (data) {
-                if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
-                    data.push({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
+            try {
+                const { data } = await _supabase.from('users').select('*');
+                if (data && data.length > 0) {
+                    if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
+                        data.push({ id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
+                    }
+                    users = data;
+                    localStorage.setItem('tm_local_users', JSON.stringify(users));
                 }
-                users = data;
-            } else {
-                users = [{ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }];
+            } catch (err) {
+                console.log("Using cached users");
             }
         }
 
@@ -246,10 +251,14 @@
         }
 
         async function fetchTasks() {
-            const { data } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
-            if (data) {
-                tasks = data;
-                renderTasks();
+            try {
+                const { data } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
+                if (data) {
+                    tasks = data;
+                    renderTasks();
+                }
+            } catch (err) {
+                console.error("Task fetch error:", err);
             }
         }
 
@@ -258,21 +267,22 @@
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
 
-            await fetchUsers();
             if (users.some(x => x.username.toLowerCase() === newU.toLowerCase())) {
                 alert('Username already exists.');
                 return;
             }
 
-            const { error } = await _supabase.from('users').insert([{ username: newU, password: newP, role: 'user' }]);
-            if (error) {
-                alert('Error creating user: ' + error.message);
-            } else {
-                document.getElementById('createUserForm').reset();
-                await fetchUsers();
-                renderUserTable();
-                alert(`User "${newU}" created successfully!`);
-            }
+            const newUser = { username: newU, password: newP, role: 'user' };
+            users.push(newUser);
+            localStorage.setItem('tm_local_users', JSON.stringify(users));
+
+            try {
+                await _supabase.from('users').insert([newUser]);
+            } catch (err) {}
+
+            document.getElementById('createUserForm').reset();
+            renderUserTable();
+            alert(`User "${newU}" created successfully!`);
         });
 
         async function deleteUser(id, username) {
@@ -281,9 +291,13 @@
                 return;
             }
             if (confirm(`Delete user "${username}"?`)) {
-                const { error } = await _supabase.from('users').delete().eq('id', id);
-                if (error) alert('Error: ' + error.message);
-                else { await fetchUsers(); renderUserTable(); }
+                users = users.filter(u => u.id !== id && u.username !== username);
+                localStorage.setItem('tm_local_users', JSON.stringify(users));
+                renderUserTable();
+
+                try {
+                    await _supabase.from('users').delete().eq('id', id);
+                } catch (err) {}
             }
         }
 
@@ -303,7 +317,13 @@
             const title = document.getElementById('taskTitleInput').value.trim();
             const deadline = document.getElementById('taskDeadlineInput').value;
 
-            const { error } = await _supabase.from('tasks').insert([{ title, deadline, status: 'Open', comment: '' }]);
+            const { error } = await _supabase.from('tasks').insert([{ 
+                title, 
+                deadline, 
+                status: 'Open', 
+                comment: '', 
+                last_updated_by: currentUser.username 
+            }]);
             if (error) alert('Error: ' + error.message);
             else {
                 document.getElementById('taskForm').reset();
@@ -340,7 +360,10 @@
         });
 
         async function updateTaskStatus(id, status, comment) {
-            let payload = { status };
+            let payload = { 
+                status, 
+                last_updated_by: currentUser.username 
+            };
             if (comment) payload.comment = comment;
 
             const { error } = await _supabase.from('tasks').update(payload).eq('id', id);
@@ -374,7 +397,8 @@
             }
 
             filtered.forEach(task => {
-                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details:</strong> ${task.comment}</div>` : '';
+                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details (${task.last_updated_by || 'Unknown'}):</strong> ${task.comment}</div>` : '';
+                let loggerHTML = task.last_updated_by ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem;">👤 Last updated by: <strong>${task.last_updated_by}</strong></div>` : '';
                 let deleteBtn = currentUser.role.toLowerCase() === 'admin' ? `<button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>` : '';
 
                 container.innerHTML += `
@@ -383,25 +407,7 @@
                             <div>
                                 <div style="font-size: 1.1rem; font-weight: 600;">${task.title}</div>
                                 <div style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">📅 Due: ${task.deadline}</div>
+                                ${loggerHTML}
                             </div>
                             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                                <span class="status-badge badge-${task.status}">${task.status}</span>
-                                <select onchange="handleStatusChange(${task.id}, this.value)">
-                                    <option value="" disabled selected>Change status</option>
-                                    <option value="Open">Open</option>
-                                    <option value="Working">Working</option>
-                                    <option value="Completed">Completed</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                                ${deleteBtn}
-                            </div>
-                        </div>
-                        ${commentHTML}
-                    </div>
-                `;
-            });
-        }
-    </script>
-</body>
-</html>
-
+                                <span class="status-badge badge-${task.
