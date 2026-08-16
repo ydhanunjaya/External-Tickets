@@ -390,7 +390,9 @@
     <script>
         let _supabase;
         let tasks = [];
-        let users = [];
+        let users = [
+            { username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
+        ];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
         let currentFilter = 'All';
         let pendingTaskUpdate = null;
@@ -414,7 +416,7 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                await fetchUsers();
+                backgroundFetchUsers();
             } catch (err) {
                 console.error("Supabase init error:", err);
             }
@@ -424,30 +426,25 @@
             }
         });
 
-        async function fetchUsers() {
-            const { data, error } = await _supabase.from('users').select('*');
-            if (!error && data) {
-                if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
-                    data.push({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
-                }
-                users = data;
-                if (currentUser) {
-                    const updated = users.find(u => u.username.toLowerCase() === currentUser.username.toLowerCase());
-                    if (updated) {
-                        currentUser = updated;
-                        sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
+        async function backgroundFetchUsers() {
+            try {
+                const { data, error } = await _supabase.from('users').select('*');
+                if (!error && data) {
+                    if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
+                        data.push({ username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
                     }
+                    users = data;
                 }
-                renderUserTable();
+            } catch (err) {
+                console.log("Using default user list");
             }
         }
 
-        loginForm.addEventListener('submit', async (e) => {
+        // Instant Sync Login Handler (No blocking await on login)
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
-
-            await fetchUsers();
 
             const foundUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
 
@@ -468,7 +465,8 @@
             loginScreen.classList.remove('hidden');
         }
 
-        async function showApp() {
+        function showApp() {
+            // Immediate UI Switch
             loginScreen.classList.add('hidden');
             appScreen.classList.remove('hidden');
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
@@ -476,19 +474,26 @@
             if (currentUser.role === 'admin') {
                 adminUserSection.classList.remove('hidden');
                 adminTaskSection.classList.remove('hidden');
-                await fetchUsers();
+                renderUserTable();
             } else {
                 adminUserSection.classList.add('hidden');
                 adminTaskSection.classList.add('hidden');
             }
-            await fetchTasks();
+            fetchTasks();
+            backgroundFetchUsers().then(() => {
+                if (currentUser.role === 'admin') renderUserTable();
+            });
         }
 
         async function fetchTasks() {
-            const { data, error } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
-            if (!error && data) {
-                tasks = data;
-                renderTasks();
+            try {
+                const { data, error } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
+                if (!error && data) {
+                    tasks = data;
+                    renderTasks();
+                }
+            } catch (err) {
+                console.error("Error fetching tasks:", err);
             }
         }
 
@@ -502,31 +507,40 @@
                 return;
             }
 
-            const { error } = await _supabase
-                .from('users')
-                .insert([{ username: newU, password: newP, role: 'user' }]);
+            try {
+                const { error } = await _supabase
+                    .from('users')
+                    .insert([{ username: newU, password: newP, role: 'user' }]);
 
-            if (error) {
-                alert('Error creating user: ' + error.message);
-            } else {
-                createUserForm.reset();
-                await fetchUsers();
-                alert(`User "${newU}" created successfully!`);
+                if (error) {
+                    alert('Error creating user: ' + error.message);
+                } else {
+                    createUserForm.reset();
+                    await backgroundFetchUsers();
+                    renderUserTable();
+                    alert(`User "${newU}" created successfully!`);
+                }
+            } catch (err) {
+                alert('Error creating user: ' + err.message);
             }
         });
 
-        // Admin: Delete User
         async function deleteUser(id, username) {
             if (username.toLowerCase() === 'dhanu') {
                 alert("You cannot delete the primary admin account!");
                 return;
             }
             if (confirm(`Are you sure you want to delete user "${username}"?`)) {
-                const { error } = await _supabase.from('users').delete().eq('id', id);
-                if (error) {
-                    alert("Failed to delete user: " + error.message);
-                } else {
-                    await fetchUsers();
+                try {
+                    const { error } = await _supabase.from('users').delete().eq('id', id);
+                    if (error) {
+                        alert("Failed to delete user: " + error.message);
+                    } else {
+                        await backgroundFetchUsers();
+                        renderUserTable();
+                    }
+                } catch (err) {
+                    alert("Failed to delete user: " + err.message);
                 }
             }
         }
@@ -550,138 +564,12 @@
             const title = document.getElementById('taskTitleInput').value.trim();
             const deadline = document.getElementById('taskDeadlineInput').value;
 
-            const { error } = await _supabase
-                .from('tasks')
-                .insert([{ title, deadline, status: 'Open', comment: '' }]);
+            try {
+                const { error } = await _supabase
+                    .from('tasks')
+                    .insert([{ title, deadline, status: 'Open', comment: '' }]);
 
-            if (error) {
-                alert("Failed to create task: " + error.message);
-            } else {
-                taskForm.reset();
-                document.getElementById('taskDeadlineInput').valueAsDate = new Date();
-                await fetchTasks();
-            }
-        });
-
-        async function deleteTask(id) {
-            if (confirm("Are you sure you want to delete this task?")) {
-                const { error } = await _supabase.from('tasks').delete().eq('id', id);
                 if (error) {
-                    alert("Failed to delete task: " + error.message);
+                    alert("Failed to create task: " + error.message);
                 } else {
-                    await fetchTasks();
-                }
-            }
-        }
-
-        function handleStatusChange(taskId, newStatus) {
-            if (newStatus === 'Completed') {
-                pendingTaskUpdate = taskId;
-                workCommentInput.value = '';
-                commentModal.classList.remove('hidden');
-            } else {
-                updateTaskInSupabase(taskId, newStatus, '');
-            }
-        }
-
-        document.getElementById('commentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (pendingTaskUpdate) {
-                const commentText = workCommentInput.value.trim();
-                await updateTaskInSupabase(pendingTaskUpdate, 'Completed', commentText);
-                closeCommentModal();
-            }
-        });
-
-        async function updateTaskInSupabase(id, status, comment) {
-            let updatePayload = { status };
-            if (comment !== '') {
-                updatePayload.comment = comment;
-            }
-
-            const { error } = await _supabase
-                .from('tasks')
-                .update(updatePayload)
-                .eq('id', id);
-
-            if (error) {
-                alert("Failed to update task: " + error.message);
-            } else {
-                await fetchTasks();
-            }
-        }
-
-        function closeCommentModal() {
-            commentModal.classList.add('hidden');
-            pendingTaskUpdate = null;
-            renderTasks();
-        }
-
-        function filterTasks(status) {
-            currentFilter = status;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if(btn.textContent.includes(status) || (status === 'All' && btn.textContent === 'All Tasks')) {
-                    btn.classList.add('active');
-                }
-            });
-            renderTasks();
-        }
-
-        function renderTasks() {
-            taskListContainer.innerHTML = '';
-
-            const filteredTasks = tasks.filter(task => {
-                if (currentFilter === 'All') return true;
-                return task.status === currentFilter;
-            });
-
-            if (filteredTasks.length === 0) {
-                taskListContainer.innerHTML = `<div style="text-align:center; color: var(--text-muted); padding: 2rem; font-style:italic;">No tasks available.</div>`;
-                return;
-            }
-
-            filteredTasks.forEach(task => {
-                const item = document.createElement('div');
-                item.className = 'task-item';
-
-                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details / Comment:</strong> ${escapeHTML(task.comment)}</div>` : '';
-
-                let deleteBtnHTML = currentUser.role === 'admin' ? `<button class="delete-btn" onclick="deleteTask(${task.id})">Delete Task</button>` : '';
-
-                let controlsHTML = `
-                    <div class="task-controls">
-                        <span class="status-badge badge-${task.status}">${task.status}</span>
-                        <select class="task-select" onchange="handleStatusChange(${task.id}, this.value)">
-                            <option value="" disabled selected>Change status</option>
-                            <option value="Open">Open</option>
-                            <option value="Working">Working</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                        ${deleteBtnHTML}
-                    </div>
-                `;
-
-                item.innerHTML = `
-                    <div class="task-header">
-                        <div>
-                            <div class="task-title">${escapeHTML(task.title)}</div>
-                            <div class="task-deadline">📅 Due by: ${task.deadline}</div>
-                        </div>
-                        ${controlsHTML}
-                    </div>
-                    ${commentHTML}
-                `;
-                taskListContainer.appendChild(item);
-            });
-        }
-
-        function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-            );
-        }
-    </script>
-</body>
-</html>
+                    t
