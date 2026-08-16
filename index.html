@@ -416,7 +416,7 @@
 
             try {
                 _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                backgroundFetchUsers();
+                await fetchUsers();
             } catch (err) {
                 console.error("Supabase init error:", err);
             }
@@ -426,7 +426,7 @@
             }
         });
 
-        async function backgroundFetchUsers() {
+        async function fetchUsers() {
             try {
                 const { data, error } = await _supabase.from('users').select('*');
                 if (!error && data) {
@@ -440,10 +440,14 @@
             }
         }
 
-        loginForm.addEventListener('submit', (e) => {
+        // Guaranteed synchronous await check on login submit
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
+
+            // Force-fetch latest users right when login button is clicked
+            await fetchUsers();
 
             const foundUser = users.find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
 
@@ -460,29 +464,33 @@
         function logout() {
             currentUser = null;
             sessionStorage.removeItem('tm_current_user');
+            appScreen.style.display = 'none';
             appScreen.classList.add('hidden');
+            loginScreen.style.display = 'block';
             loginScreen.classList.remove('hidden');
         }
 
         function showApp() {
             loginScreen.style.display = 'none';
+            loginScreen.classList.add('hidden');
             appScreen.style.display = 'block';
             appScreen.classList.remove('hidden');
             
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
 
             if (currentUser.role === 'admin') {
+                adminUserSection.style.display = 'block';
                 adminUserSection.classList.remove('hidden');
+                adminTaskSection.style.display = 'block';
                 adminTaskSection.classList.remove('hidden');
                 renderUserTable();
             } else {
+                adminUserSection.style.display = 'none';
                 adminUserSection.classList.add('hidden');
+                adminTaskSection.style.display = 'none';
                 adminTaskSection.classList.add('hidden');
             }
             fetchTasks();
-            backgroundFetchUsers().then(() => {
-                if (currentUser.role === 'admin') renderUserTable();
-            });
         }
 
         async function fetchTasks() {
@@ -502,6 +510,7 @@
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
 
+            await fetchUsers();
             if (users.some(u => u.username.toLowerCase() === newU.toLowerCase())) {
                 alert('Username already exists.');
                 return;
@@ -516,7 +525,7 @@
                     alert('Error creating user: ' + error.message);
                 } else {
                     createUserForm.reset();
-                    await backgroundFetchUsers();
+                    await fetchUsers();
                     renderUserTable();
                     alert(`User "${newU}" created successfully!`);
                 }
@@ -536,7 +545,7 @@
                     if (error) {
                         alert("Failed to delete user: " + error.message);
                     } else {
-                        await backgroundFetchUsers();
+                        await fetchUsers();
                         renderUserTable();
                     }
                 } catch (err) {
@@ -601,6 +610,7 @@
                 pendingTaskUpdate = taskId;
                 workCommentInput.value = '';
                 commentModal.classList.remove('hidden');
+                commentModal.style.display = 'flex';
             } else {
                 updateTaskInSupabase(taskId, newStatus, '');
             }
@@ -639,6 +649,7 @@
 
         function closeCommentModal() {
             commentModal.classList.add('hidden');
+            commentModal.style.display = 'none';
             pendingTaskUpdate = null;
             renderTasks();
         }
