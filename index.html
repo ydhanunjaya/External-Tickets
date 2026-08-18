@@ -17,6 +17,9 @@
             --text: #1e293b;
             --muted: #64748b;
             --border: #e2e8f0;
+            --danger: #ef4444;
+            --danger-bg: #fef2f2;
+            --danger-border: #fca5a5;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 2rem 1rem; }
@@ -40,7 +43,23 @@
         .filter-btn { background: var(--card); color: var(--muted); border: 1px solid var(--border); padding: 0.5rem 1rem; font-size: 0.875rem; border-radius: 6px; cursor: pointer; }
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
-        .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+        
+        /* Task Cards */
+        .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; transition: all 0.2s ease; }
+        
+        /* Overdue Task Highlight */
+        .task-item.is-overdue {
+            background-color: var(--danger-bg);
+            border: 2px solid var(--danger-border);
+        }
+        .task-item.is-overdue h3 {
+            color: #b91c1c;
+        }
+        .overdue-tag {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
         .task-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .status-badge { padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: white; }
         .badge-Open { background-color: #3b82f6; }
@@ -89,8 +108,10 @@
         <!-- ADMIN: ACTIVITY AUDIT LOG -->
         <div id="adminLogSection" class="card hidden">
             <h2>Activity Audit Log (Admin View)</h2>
-            <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">Shows which user updated task statuses and what comments they left.</p>
-            <div style="max-height: 200px; overflow-y: auto;">
+            <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
+                Completed tasks appear here <strong>2 days after completion</strong>. Other status logs appear in real-time.
+            </p>
+            <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
                     <thead>
                         <tr>
@@ -98,6 +119,7 @@
                             <th>Updated By</th>
                             <th>Status</th>
                             <th>Comment / Summary</th>
+                            <th>Completed Date</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -258,7 +280,8 @@
             document.getElementById('appScreen').classList.remove('hidden');
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
 
-            if (currentUser.role.toLowerCase() === 'admin') {
+            const isAdmin = currentUser.role.toLowerCase() === 'admin';
+            if (isAdmin) {
                 document.getElementById('adminLogSection').classList.remove('hidden');
                 document.getElementById('adminUserSection').classList.remove('hidden');
                 document.getElementById('adminTaskSection').classList.remove('hidden');
@@ -337,23 +360,38 @@
             });
         }
 
+        // Requirement 1: Completed tasks appear after 2 days (48 hours)
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
             tbody.innerHTML = '';
             
-            const updatedTasks = tasks.filter(t => t.last_updated_by);
-            if (updatedTasks.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--muted); font-style:italic;">No activity logged yet.</td></tr>`;
+            const twoDaysInMs = 2 * 24 * 60 * 60 * 1000;
+            const now = new Date().getTime();
+
+            const eligibleTasks = tasks.filter(t => {
+                if (!t.last_updated_by) return false;
+                if (t.status === 'Completed') {
+                    if (!t.completed_at) return false;
+                    const completedTime = new Date(t.completed_at).getTime();
+                    return (now - completedTime) >= twoDaysInMs;
+                }
+                return true; // Non-completed status updates display immediately
+            });
+
+            if (eligibleTasks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted); font-style:italic;">No qualifying audit logs (completed tasks require 2 days to appear).</td></tr>`;
                 return;
             }
 
-            updatedTasks.forEach(task => {
+            eligibleTasks.forEach(task => {
+                const completedDisplay = task.completed_at ? new Date(task.completed_at).toLocaleDateString() : '-';
                 tbody.innerHTML += `
                     <tr>
                         <td><strong>${task.title}</strong></td>
                         <td>👤 ${task.last_updated_by}</td>
                         <td><span class="status-badge badge-${task.status}">${task.status}</span></td>
                         <td>${task.comment || '<span style="color:var(--muted);">-</span>'}</td>
+                        <td style="font-size:0.85rem; color:var(--muted);">${completedDisplay}</td>
                     </tr>
                 `;
             });
@@ -369,7 +407,8 @@
                 deadline, 
                 status: 'Open', 
                 comment: '', 
-                last_updated_by: currentUser.username 
+                last_updated_by: currentUser.username,
+                completed_at: null
             }]);
             if (error) alert('Error: ' + error.message);
             else {
@@ -379,101 +418,4 @@
             }
         });
 
-        async function deleteTask(id) {
-            if (confirm("Delete this task?")) {
-                const { error } = await _supabase.from('tasks').delete().eq('id', id);
-                if (error) alert('Error: ' + error.message);
-                else await fetchTasks();
-            }
-        }
-
-        function handleStatusChange(id, status) {
-            if (status === 'Completed') {
-                pendingTaskId = id;
-                document.getElementById('workComment').value = '';
-                document.getElementById('commentModal').classList.remove('hidden');
-            } else {
-                updateTaskStatus(id, status, '');
-            }
-        }
-
-        document.getElementById('commentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (pendingTaskId) {
-                const comment = document.getElementById('workComment').value.trim();
-                await updateTaskStatus(pendingTaskId, 'Completed', comment);
-                closeCommentModal();
-            }
-        });
-
-        async function updateTaskStatus(id, status, comment) {
-            let payload = { 
-                status, 
-                last_updated_by: currentUser.username 
-            };
-            if (comment) payload.comment = comment;
-
-            const { error } = await _supabase.from('tasks').update(payload).eq('id', id);
-            if (error) alert('Error: ' + error.message);
-            else await fetchTasks();
-        }
-
-        function closeCommentModal() {
-            document.getElementById('commentModal').classList.add('hidden');
-            pendingTaskId = null;
-            renderTasks();
-        }
-
-        function filterTasks(status) {
-            currentFilter = status;
-            document.querySelectorAll('.filter-btn').forEach(b => {
-                b.classList.remove('active');
-                if (b.textContent.includes(status) || (status === 'All' && b.textContent === 'All Tasks')) b.classList.add('active');
-            });
-            renderTasks();
-        }
-
-        function renderTasks() {
-            const container = document.getElementById('taskList');
-            container.innerHTML = '';
-            const filtered = tasks.filter(t => currentFilter === 'All' || t.status === currentFilter);
-
-            if (filtered.length === 0) {
-                container.innerHTML = `<div style="text-align:center; color: var(--muted); padding: 2rem; font-style:italic;">No tasks available.</div>`;
-                return;
-            }
-
-            filtered.forEach(task => {
-                let commentHTML = task.comment ? `<div class="comment-section"><strong>Work Details (${task.last_updated_by || 'Unknown'}):</strong> ${task.comment}</div>` : '';
-                let loggerHTML = task.last_updated_by ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem;">👤 Last updated by: <strong>${task.last_updated_by}</strong></div>` : '';
-                let deleteBtn = currentUser.role.toLowerCase() === 'admin' ? `<button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>` : '';
-
-                container.innerHTML += `
-                    <div class="task-item">
-                        <div class="task-header">
-                            <div>
-                                <div style="font-size: 1.1rem; font-weight: 600;">${task.title}</div>
-                                <div style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">📅 Due: ${task.deadline}</div>
-                                ${loggerHTML}
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                                <span class="status-badge badge-${task.status}">${task.status}</span>
-                                <select onchange="handleStatusChange(${task.id}, this.value)">
-                                    <option value="" disabled selected>Change status</option>
-                                    <option value="Open">Open</option>
-                                    <option value="Working">Working</option>
-                                    <option value="Completed">Completed</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                                ${deleteBtn}
-                            </div>
-                        </div>
-                        ${commentHTML}
-                    </div>
-                `;
-            });
-        }
-    </script>
-</body>
-</html>
-
+        async function d
