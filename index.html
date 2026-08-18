@@ -40,7 +40,7 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         
-        /* Missed deadline styling */
+        /* Requirement 3: Overdue Task Red Styling */
         .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
         .task-item.is-overdue {
             background-color: var(--danger-bg) !important;
@@ -69,19 +69,19 @@
     <!-- 1. LOGIN SCREEN -->
     <div id="loginScreen" class="login-wrapper card">
         <h1>Task Manager Login</h1>
-        <form id="loginForm" class="form-grid" style="grid-template-columns: 1fr;">
+        <div class="form-grid" style="grid-template-columns: 1fr;">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="loginUser" required placeholder="Enter username" value="Dhanu">
+                <input type="text" id="loginUser" placeholder="Enter username" value="Dhanu">
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="loginPass" required placeholder="Enter password" value="Dhanu@2002">
+                <input type="password" id="loginPass" placeholder="Enter password" value="Dhanu@2002">
             </div>
             <div class="form-group" style="margin-top: 0.5rem;">
-                <button type="submit" style="width: 100%;">Login</button>
+                <button type="button" onclick="performLogin()" style="width: 100%;">Login</button>
             </div>
-        </form>
+        </div>
     </div>
 
     <!-- 2. MAIN APP SCREEN -->
@@ -91,14 +91,14 @@
                 <h1>Task Manager</h1>
                 <p id="welcomeUser" style="color: var(--muted); font-size: 0.9rem;"></p>
             </div>
-            <button class="btn-secondary" onclick="window.logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
+            <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
         </header>
 
-        <!-- ADMIN: ACTIVITY AUDIT LOG (Completed tasks appear after 2 days) -->
+        <!-- ADMIN: ACTIVITY AUDIT LOG (Req 1) -->
         <div id="adminLogSection" class="card hidden">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
-                Completed tasks appear here <strong>2 days after completion</strong>. Other status logs appear in real-time.
+                Completed tasks appear here <strong>2 days after completion</strong>. Other updates appear in real-time.
             </p>
             <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
@@ -119,19 +119,19 @@
         <!-- ADMIN: CREATE USER -->
         <div id="adminUserSection" class="card hidden">
             <h2>Create New User Account</h2>
-            <form id="createUserForm" class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
                 <div class="form-group">
                     <label>Username</label>
-                    <input type="text" id="newUsername" required placeholder="New username">
+                    <input type="text" id="newUsername" placeholder="New username">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="newPassword" required placeholder="New password">
+                    <input type="password" id="newPassword" placeholder="New password">
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
-                    <button type="submit">Create User</button>
+                    <button type="button" onclick="createUser()">Create User</button>
                 </div>
-            </form>
+            </div>
             <div style="margin-top: 1.5rem;">
                 <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Existing Users</h3>
                 <table class="user-table" id="userTable">
@@ -150,30 +150,30 @@
         <!-- ADMIN: CREATE TASK -->
         <div id="adminTaskSection" class="card hidden">
             <h2>Create Global Task</h2>
-            <form id="taskForm" class="form-grid">
+            <div class="form-grid">
                 <div class="form-group">
                     <label>Task Name</label>
-                    <input type="text" id="taskTitleInput" required placeholder="e.g., Update system security">
+                    <input type="text" id="taskTitleInput" placeholder="e.g., Update system security">
                 </div>
                 <div class="form-group">
                     <label>Deadline</label>
-                    <input type="date" id="taskDeadlineInput" required>
+                    <input type="date" id="taskDeadlineInput">
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
-                    <button type="submit">Publish Task</button>
+                    <button type="button" onclick="createTask()">Publish Task</button>
                 </div>
-            </form>
+            </div>
         </div>
 
         <!-- TASK WORKSPACE -->
         <div class="card">
             <h2>Task Workspace</h2>
             <div class="filters">
-                <button class="filter-btn active" onclick="window.filterTasks('All')">All Tasks</button>
-                <button class="filter-btn" onclick="window.filterTasks('Open')">Open</button>
-                <button class="filter-btn" onclick="window.filterTasks('Working')">Working</button>
-                <button class="filter-btn" onclick="window.filterTasks('Completed')">Completed</button>
-                <button class="filter-btn" id="filterCancelledBtn" onclick="window.filterTasks('Cancelled')">Cancelled</button>
+                <button class="filter-btn active" onclick="filterTasks('All')">All Tasks</button>
+                <button class="filter-btn" onclick="filterTasks('Open')">Open</button>
+                <button class="filter-btn" onclick="filterTasks('Working')">Working</button>
+                <button class="filter-btn" onclick="filterTasks('Completed')">Completed</button>
+                <button class="filter-btn" id="filterCancelledBtn" onclick="filterTasks('Cancelled')">Cancelled</button>
             </div>
             <div class="task-list" id="taskList"></div>
         </div>
@@ -184,16 +184,14 @@
         <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
             <h2>Work Details Required</h2>
             <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem;">Provide summary for completed work.</p>
-            <form id="commentForm">
-                <div class="form-group" style="margin-bottom: 1rem;">
-                    <label>Work Summary / Comments</label>
-                    <textarea id="workComment" rows="4" required placeholder="Explain what was accomplished..."></textarea>
-                </div>
-                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                    <button type="button" class="btn-secondary" onclick="window.closeCommentModal()" style="width: auto;">Cancel</button>
-                    <button type="submit" style="width: auto;">Submit Completion</button>
-                </div>
-            </form>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Work Summary / Comments</label>
+                <textarea id="workComment" rows="4" placeholder="Explain what was accomplished..."></textarea>
+            </div>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeCommentModal()" style="width: auto;">Cancel</button>
+                <button type="button" onclick="submitCompletion()" style="width: auto;">Submit Completion</button>
+            </div>
         </div>
     </div>
 
@@ -201,7 +199,22 @@
         const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
 
-        // REST API helper that never crashes or blocks UI
+        // Safe storage helpers
+        function safeGet(key, fallback) {
+            try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; }
+        }
+        function safeSet(key, val) {
+            try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+        }
+
+        const defaultAdmin = { id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' };
+        let users = safeGet('tm_users', [defaultAdmin]);
+        let tasks = safeGet('tm_tasks', []);
+        let currentUser = null;
+        let currentFilter = 'All';
+        let pendingTaskId = null;
+
+        // REST API helper that never throws or freezes UI
         async function dbRequest(endpoint, method = 'GET', body = null) {
             try {
                 const options = {
@@ -222,49 +235,47 @@
             }
         }
 
-        const defaultAdmin = { id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' };
-        let users = JSON.parse(localStorage.getItem('tm_users')) || [defaultAdmin];
-        let tasks = JSON.parse(localStorage.getItem('tm_tasks')) || [];
-        let currentUser = JSON.parse(sessionStorage.getItem('tm_current_user')) || null;
-        let currentFilter = 'All';
-        let pendingTaskId = null;
-
-        // Run immediately when script loads
-        function initApp() {
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
             const dl = document.getElementById('taskDeadlineInput');
             if (dl) dl.valueAsDate = new Date();
 
-            if (currentUser) {
-                showAppScreen();
-            }
-            syncData();
-        }
+            try {
+                const saved = sessionStorage.getItem('tm_current_user');
+                if (saved) {
+                    currentUser = JSON.parse(saved);
+                    showAppScreen();
+                }
+            } catch (e) {}
 
-        // 1. GUARANTEED INSTANT LOGIN REDIRECT
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
+            syncData();
+        });
+
+        // 1. GUARANTEED INSTANT LOGIN (Runs synchronously first)
+        function performLogin() {
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
             let matched = users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
 
-            // Hardcoded check backup so admin ALWAYS logs in immediately
             if (!matched && u.toLowerCase() === 'dhanu' && p === 'Dhanu@2002') {
                 matched = defaultAdmin;
             }
 
             if (matched) {
                 currentUser = matched;
-                sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser));
-                document.getElementById('loginForm').reset();
+                try { sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser)); } catch (e) {}
+                
+                // Immediately switch screens
                 showAppScreen();
                 syncData();
             } else {
                 alert('Invalid username or password.');
             }
-        });
+        }
 
         function showAppScreen() {
+            if (!currentUser) return;
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appScreen').classList.remove('hidden');
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
@@ -282,40 +293,42 @@
             renderTasks();
         }
 
-        window.logout = function() {
-            sessionStorage.removeItem('tm_current_user');
+        function logout() {
+            try { sessionStorage.removeItem('tm_current_user'); } catch (e) {}
             currentUser = null;
             document.getElementById('appScreen').classList.add('hidden');
             document.getElementById('loginScreen').classList.remove('hidden');
-        };
+        }
 
-        // Sync with Supabase in background
+        // Background sync with Supabase
         async function syncData() {
-            // Sync users
             const remoteUsers = await dbRequest('users?select=*');
-            if (remoteUsers && remoteUsers.length > 0) {
+            if (remoteUsers && Array.isArray(remoteUsers) && remoteUsers.length > 0) {
                 if (!remoteUsers.some(u => u.username.toLowerCase() === 'dhanu')) {
                     remoteUsers.push(defaultAdmin);
                 }
                 users = remoteUsers;
-                localStorage.setItem('tm_users', JSON.stringify(users));
+                safeSet('tm_users', users);
                 if (currentUser && currentUser.role.toLowerCase() === 'admin') renderUserTable();
             }
 
-            // Sync tasks
             const remoteTasks = await dbRequest('tasks?select=*&order=id.desc');
-            if (remoteTasks && remoteTasks.length >= 0) {
+            if (remoteTasks && Array.isArray(remoteTasks)) {
                 tasks = remoteTasks;
-                localStorage.setItem('tm_tasks', JSON.stringify(tasks));
+                safeSet('tm_tasks', tasks);
                 renderTasks();
                 if (currentUser && currentUser.role.toLowerCase() === 'admin') renderAuditLog();
             }
         }
 
-        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        async function createUser() {
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
+
+            if (!newU || !newP) {
+                alert('Please enter both username and password.');
+                return;
+            }
 
             if (users.some(x => x.username.toLowerCase() === newU.toLowerCase())) {
                 alert('Username already exists.');
@@ -324,27 +337,28 @@
 
             const newUser = { id: Date.now(), username: newU, password: newP, role: 'user' };
             users.push(newUser);
-            localStorage.setItem('tm_users', JSON.stringify(users));
+            safeSet('tm_users', users);
             renderUserTable();
 
             await dbRequest('users', 'POST', { username: newU, password: newP, role: 'user' });
 
-            document.getElementById('createUserForm').reset();
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
             alert(`User "${newU}" created successfully!`);
-        });
+        }
 
-        window.deleteUser = async function(username) {
+        async function deleteUser(username) {
             if (username.toLowerCase() === 'dhanu') {
                 alert("Cannot delete primary admin.");
                 return;
             }
             if (confirm(`Delete user "${username}"?`)) {
                 users = users.filter(u => u.username.toLowerCase() !== username.toLowerCase());
-                localStorage.setItem('tm_users', JSON.stringify(users));
+                safeSet('tm_users', users);
                 renderUserTable();
                 await dbRequest(`users?username=eq.${username}`, 'DELETE');
             }
-        };
+        }
 
         function renderUserTable() {
             const tbody = document.querySelector('#userTable tbody');
@@ -352,13 +366,13 @@
             tbody.innerHTML = '';
             users.forEach(u => {
                 let action = (u.username.toLowerCase() !== 'dhanu')
-                    ? `<button class="delete-btn" onclick="window.deleteUser('${u.username}')">Delete</button>`
+                    ? `<button class="delete-btn" onclick="deleteUser('${u.username}')">Delete</button>`
                     : '<span style="color:var(--muted); font-size:0.85rem;">Protected</span>';
                 tbody.innerHTML += `<tr><td>${u.username}</td><td>${u.role.toUpperCase()}</td><td>${action}</td></tr>`;
             });
         }
 
-        // Req 1: Activity Log displays completed items after 2 days (48 hours)
+        // Req 1: Activity Log displays completed tasks after 2 days
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
             if (!tbody) return;
@@ -368,7 +382,7 @@
             const now = Date.now();
 
             const eligibleTasks = tasks.filter(t => {
-                if (!t.last_updated_by) return false;
+                if (!t || !t.last_updated_by) return false;
                 if (t.status === 'Completed') {
                     if (!t.completed_at) return false;
                     const completedTime = new Date(t.completed_at).getTime();
@@ -386,7 +400,7 @@
                 const completedDisplay = task.completed_at ? new Date(task.completed_at).toLocaleDateString() : '-';
                 tbody.innerHTML += `
                     <tr>
-                        <td><strong>${task.title}</strong></td>
+                        <td><strong>${task.title || ''}</strong></td>
                         <td>👤 ${task.last_updated_by}</td>
                         <td><span class="status-badge badge-${task.status}">${task.status}</span></td>
                         <td>${task.comment || '<span style="color:var(--muted);">-</span>'}</td>
@@ -396,10 +410,6 @@
             });
         }
 
-        document.getElementById('taskForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        async function createTask() {
             const title = document.getElementById('taskTitleInput').value.trim();
-            const deadline = document.getElementById('taskDeadlineInput').value;
-
-            const newTask = {
-    
+            const deadline = document.getElementById('taskDeadlineI
