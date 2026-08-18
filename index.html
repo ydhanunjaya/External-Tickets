@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager App with Audit Log</title>
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        window.createClient = createClient;
-    </script>
+    <!-- Load Supabase UMD Bundle (Stable for direct browser script usage) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #4f46e5;
@@ -33,7 +31,7 @@
         label { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; }
         input, textarea, select { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; width: 100%; }
         input:focus, textarea:focus, select:focus { border-color: var(--primary); }
-        button { background-color: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; border-radius: 8px; cursor: pointer; align-self: flex-end; }
+        button { background-color: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 600; border-radius: 8px; cursor: pointer; }
         button:hover { background-color: var(--primary-hover); }
         .btn-secondary { background-color: var(--muted); }
         .btn-secondary:hover { background-color: #475569; }
@@ -44,10 +42,8 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         
-        /* Task Cards */
-        .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; transition: all 0.2s ease; }
-        
-        /* Overdue Task Highlight */
+        /* Overdue Task Highlight (Requirement 3) */
+        .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
         .task-item.is-overdue {
             background-color: var(--danger-bg);
             border: 2px solid var(--danger-border);
@@ -58,6 +54,7 @@
         .overdue-tag {
             color: #dc2626;
             font-weight: bold;
+            margin-left: 0.5rem;
         }
 
         .task-header { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -109,7 +106,7 @@
         <div id="adminLogSection" class="card hidden">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
-                Completed tasks appear here <strong>2 days after completion</strong>. Other status logs appear in real-time.
+                Completed tasks appear here <strong>2 days after completion</strong>. Other updates appear immediately.
             </p>
             <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
@@ -209,7 +206,12 @@
     </div>
 
     <script>
-        let _supabase;
+        const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
+
+        // Direct initialization from the global supabase bundle
+        const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         let tasks = [];
         let users = JSON.parse(localStorage.getItem('tm_local_users')) || [
             { id: 1, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
@@ -221,23 +223,15 @@
         document.getElementById('taskDeadlineInput').valueAsDate = new Date();
 
         window.addEventListener('DOMContentLoaded', async () => {
-            const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
-            const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
-
-            try {
-                _supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                await fetchUsers();
-                if (currentUser) {
-                    showApp();
-                }
-            } catch (err) {
-                console.error("Initialization error:", err);
+            await fetchUsers();
+            if (currentUser) {
+                showApp();
             }
         });
 
         async function fetchUsers() {
             try {
-                const { data } = await _supabase.from('users').select('*');
+                const { data, error } = await _supabase.from('users').select('*');
                 if (data && data.length > 0) {
                     if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
                         data.push({ id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
@@ -246,7 +240,7 @@
                     localStorage.setItem('tm_local_users', JSON.stringify(users));
                 }
             } catch (err) {
-                console.log("Using cached users");
+                console.warn("Using local cached users");
             }
         }
 
@@ -268,12 +262,12 @@
             }
         });
 
-        function logout() {
+        window.logout = function() {
             currentUser = null;
             sessionStorage.removeItem('tm_user');
             document.getElementById('appScreen').classList.add('hidden');
             document.getElementById('loginScreen').classList.remove('hidden');
-        }
+        };
 
         async function showApp() {
             document.getElementById('loginScreen').classList.add('hidden');
@@ -297,7 +291,8 @@
 
         async function fetchTasks() {
             try {
-                const { data } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
+                const { data, error } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
+                if (error) throw error;
                 if (data) {
                     tasks = data;
                     renderTasks();
@@ -306,7 +301,7 @@
                     }
                 }
             } catch (err) {
-                console.error("Task fetch error:", err);
+                console.error("Task fetch error:", err.message || err);
             }
         }
 
@@ -333,7 +328,7 @@
             alert(`User "${newU}" created successfully!`);
         });
 
-        async function deleteUser(id, username) {
+        window.deleteUser = async function(id, username) {
             if (username.toLowerCase() === 'dhanu') {
                 alert("Cannot delete primary admin.");
                 return;
@@ -347,7 +342,7 @@
                     await _supabase.from('users').delete().eq('id', id);
                 } catch (err) {}
             }
-        }
+        };
 
         function renderUserTable() {
             const tbody = document.querySelector('#userTable tbody');
@@ -360,7 +355,7 @@
             });
         }
 
-        // Requirement 1: Completed tasks appear after 2 days (48 hours)
+        // 1) Activity Log automatically after 2 days for completed tasks
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
             tbody.innerHTML = '';
@@ -375,11 +370,11 @@
                     const completedTime = new Date(t.completed_at).getTime();
                     return (now - completedTime) >= twoDaysInMs;
                 }
-                return true; // Non-completed status updates display immediately
+                return true;
             });
 
             if (eligibleTasks.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted); font-style:italic;">No qualifying audit logs (completed tasks require 2 days to appear).</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted); font-style:italic;">No qualifying activity logged (completed items require 2 days to appear).</td></tr>`;
                 return;
             }
 
@@ -418,4 +413,6 @@
             }
         });
 
-        async function d
+        window.deleteTask = async function(id) {
+            if (confirm("Delete this task?")) {
+                const { error } 
