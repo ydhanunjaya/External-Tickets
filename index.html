@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager App with Audit Log</title>
-    <!-- Stable Supabase CDN -->
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -19,7 +19,7 @@
             --danger-bg: #fef2f2;
             --danger-border: #fca5a5;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 2rem 1rem; }
         .container { max-width: 900px; margin: 0 auto; }
         .card { background: var(--card); border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); padding: 1.5rem; margin-bottom: 2rem; }
@@ -68,25 +68,25 @@
 </head>
 <body>
 
-    <!-- LOGIN SCREEN -->
+    <!-- 1. LOGIN SCREEN -->
     <div id="loginScreen" class="login-wrapper card">
         <h1>Task Manager Login</h1>
         <form id="loginForm" class="form-grid" style="grid-template-columns: 1fr;">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="loginUser" required placeholder="Enter username (e.g. Dhanu)">
+                <input type="text" id="loginUser" required placeholder="e.g. Dhanu">
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="loginPass" required placeholder="Enter password (e.g. Dhanu@2002)">
+                <input type="password" id="loginPass" required placeholder="e.g. Dhanu@2002">
             </div>
             <div class="form-group" style="margin-top: 0.5rem;">
-                <button type="submit" id="loginSubmitBtn" style="width: 100%;">Login</button>
+                <button type="submit" style="width: 100%;">Login</button>
             </div>
         </form>
     </div>
 
-    <!-- MAIN APP SCREEN -->
+    <!-- 2. MAIN APP SCREEN -->
     <div id="appScreen" class="container hidden">
         <header>
             <div>
@@ -96,11 +96,11 @@
             <button class="btn-secondary" onclick="window.logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
         </header>
 
-        <!-- ADMIN: ACTIVITY AUDIT LOG -->
+        <!-- ADMIN: ACTIVITY AUDIT LOG (Requirement 1) -->
         <div id="adminLogSection" class="card hidden">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
-                Completed tasks appear here <strong>2 days after completion</strong>. Other updates appear in real-time.
+                Completed tasks appear here <strong>2 days after completion</strong>. Other status logs appear in real-time.
             </p>
             <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
@@ -181,7 +181,7 @@
         </div>
     </div>
 
-    <!-- COMMENT MODAL -->
+    <!-- 3. COMMENT MODAL -->
     <div id="commentModal" class="hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;">
         <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
             <h2>Work Details Required</h2>
@@ -208,7 +208,7 @@
             try {
                 _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             } catch (err) {
-                console.warn("Supabase init failed, running in local fallback mode", err);
+                console.warn("Supabase init fallback:", err);
             }
         }
 
@@ -219,7 +219,7 @@
         let currentFilter = 'All';
         let pendingTaskId = null;
 
-        // Auto-check existing session on load
+        // On Page Load
         window.addEventListener('DOMContentLoaded', () => {
             const dlInput = document.getElementById('taskDeadlineInput');
             if (dlInput) dlInput.valueAsDate = new Date();
@@ -227,11 +227,11 @@
             if (currentUser) {
                 renderAppView();
             }
-            fetchUsersBackground();
+            fetchUsers();
             fetchTasks();
         });
 
-        // Instant login redirection
+        // Instant Login (Guaranteed Redirection)
         document.getElementById('loginForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
@@ -264,6 +264,7 @@
 
             const isAdmin = currentUser.role.toLowerCase() === 'admin';
             
+            // Admin Sections visibility
             document.getElementById('adminLogSection').classList.toggle('hidden', !isAdmin);
             document.getElementById('adminUserSection').classList.toggle('hidden', !isAdmin);
             document.getElementById('adminTaskSection').classList.toggle('hidden', !isAdmin);
@@ -276,11 +277,11 @@
             renderTasks();
         }
 
-        async function fetchUsersBackground() {
+        async function fetchUsers() {
             if (!_supabase) return;
             try {
-                const { data } = await _supabase.from('users').select('*');
-                if (data && data.length > 0) {
+                const { data, error } = await _supabase.from('users').select('*');
+                if (!error && data && data.length > 0) {
                     if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
                         data.push(defaultAdmin);
                     }
@@ -291,7 +292,7 @@
                     }
                 }
             } catch (e) {
-                console.warn("Background user sync fallback.");
+                console.warn("Using local cache for users");
             }
         }
 
@@ -304,7 +305,7 @@
                         localStorage.setItem('tm_local_tasks', JSON.stringify(tasks));
                     }
                 } catch (e) {
-                    console.warn("Supabase tasks fetch failed, using local storage cache.");
+                    console.warn("Using local cache for tasks");
                 }
             }
             renderTasks();
@@ -328,7 +329,7 @@
             localStorage.setItem('tm_local_users', JSON.stringify(users));
 
             if (_supabase) {
-                try { await _supabase.from('users').insert([{ username: newU, password: newP, role: 'user' }]); } catch (e) {}
+                try { await _supabase.from('users').insert([{ username: newU, password: newP, role: 'user' }]); } catch (err) {}
             }
 
             document.getElementById('createUserForm').reset();
@@ -347,7 +348,7 @@
                 renderUserTable();
 
                 if (_supabase) {
-                    try { await _supabase.from('users').delete().eq('username', username); } catch (e) {}
+                    try { await _supabase.from('users').delete().eq('username', username); } catch (err) {}
                 }
             }
         };
@@ -364,7 +365,7 @@
             });
         }
 
-        // 1) Completed tasks display after 2 days (48 hours)
+        // Requirement 1: Completed tasks display automatically after 2 days (48 hours)
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
             if (!tbody) return;
@@ -406,4 +407,5 @@
             e.preventDefault();
             const title = document.getElementById('taskTitleInput').value.trim();
             const deadline = document.getElementById('taskDeadlineInput').value;
-        
+
+            cons
