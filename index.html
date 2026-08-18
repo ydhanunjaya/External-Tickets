@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager App with Audit Log</title>
-    <!-- Load Supabase UMD Bundle (Stable for direct browser script usage) -->
+    <!-- Supabase JS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -42,20 +42,13 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         
-        /* Overdue Task Highlight (Requirement 3) */
         .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
         .task-item.is-overdue {
             background-color: var(--danger-bg);
             border: 2px solid var(--danger-border);
         }
-        .task-item.is-overdue h3 {
-            color: #b91c1c;
-        }
-        .overdue-tag {
-            color: #dc2626;
-            font-weight: bold;
-            margin-left: 0.5rem;
-        }
+        .task-item.is-overdue h3 { color: #b91c1c; }
+        .overdue-tag { color: #dc2626; font-weight: bold; margin-left: 0.5rem; }
 
         .task-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .status-badge { padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: white; }
@@ -80,14 +73,14 @@
         <form id="loginForm" class="form-grid" style="grid-template-columns: 1fr;">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="loginUser" required placeholder="Enter username">
+                <input type="text" id="loginUser" required placeholder="e.g. Dhanu">
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="loginPass" required placeholder="Enter password">
+                <input type="password" id="loginPass" required placeholder="e.g. Dhanu@2002">
             </div>
             <div class="form-group" style="margin-top: 0.5rem;">
-                <button type="submit" style="width: 100%;">Login</button>
+                <button type="submit" id="loginBtn" style="width: 100%;">Login</button>
             </div>
         </form>
     </div>
@@ -106,7 +99,7 @@
         <div id="adminLogSection" class="card hidden">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
-                Completed tasks appear here <strong>2 days after completion</strong>. Other updates appear immediately.
+                Completed tasks appear here <strong>2 days after completion</strong>.
             </p>
             <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
@@ -181,7 +174,7 @@
                 <button class="filter-btn" onclick="filterTasks('Open')">Open</button>
                 <button class="filter-btn" onclick="filterTasks('Working')">Working</button>
                 <button class="filter-btn" onclick="filterTasks('Completed')">Completed</button>
-                <button class="filter-btn" onclick="filterTasks('Cancelled')">Cancelled</button>
+                <button class="filter-btn" id="filterCancelledBtn" onclick="filterTasks('Cancelled')">Cancelled</button>
             </div>
             <div class="task-list" id="taskList"></div>
         </div>
@@ -209,54 +202,69 @@
         const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
 
-        // Direct initialization from the global supabase bundle
-        const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let _supabase;
+        try {
+            _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error("Supabase client init error:", e);
+        }
 
         let tasks = [];
-        let users = JSON.parse(localStorage.getItem('tm_local_users')) || [
-            { id: 1, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' }
-        ];
+        let defaultAdmin = { id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' };
+        let users = JSON.parse(localStorage.getItem('tm_local_users')) || [defaultAdmin];
         let currentUser = JSON.parse(sessionStorage.getItem('tm_user')) || null;
         let currentFilter = 'All';
         let pendingTaskId = null;
 
-        document.getElementById('taskDeadlineInput').valueAsDate = new Date();
+        // Initialize UI
+        window.addEventListener('DOMContentLoaded', () => {
+            const dlInput = document.getElementById('taskDeadlineInput');
+            if (dlInput) dlInput.valueAsDate = new Date();
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            await fetchUsers();
+            fetchUsers(); // Background sync
+
             if (currentUser) {
-                showApp();
+                renderAppView();
+                fetchTasks();
             }
         });
 
         async function fetchUsers() {
+            if (!_supabase) return;
             try {
                 const { data, error } = await _supabase.from('users').select('*');
-                if (data && data.length > 0) {
+                if (!error && data && data.length > 0) {
                     if (!data.some(u => u.username.toLowerCase() === 'dhanu')) {
-                        data.push({ id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' });
+                        data.push(defaultAdmin);
                     }
                     users = data;
                     localStorage.setItem('tm_local_users', JSON.stringify(users));
                 }
             } catch (err) {
-                console.warn("Using local cached users");
+                console.warn("Using local users cache");
             }
         }
 
+        // Direct Login Form Handler
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
             await fetchUsers();
+
             const matched = users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
 
             if (matched) {
                 currentUser = matched;
                 sessionStorage.setItem('tm_user', JSON.stringify(currentUser));
                 document.getElementById('loginForm').reset();
-                showApp();
+                
+                // Immediately switch UI
+                renderAppView();
+                
+                // Load tasks in background
+                fetchTasks();
             } else {
                 alert('Invalid username or password.');
             }
@@ -269,31 +277,31 @@
             document.getElementById('loginScreen').classList.remove('hidden');
         };
 
-        async function showApp() {
+        function renderAppView() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appScreen').classList.remove('hidden');
             document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
 
             const isAdmin = currentUser.role.toLowerCase() === 'admin';
+            
+            // Admin-only panels
+            document.getElementById('adminLogSection').classList.toggle('hidden', !isAdmin);
+            document.getElementById('adminUserSection').classList.toggle('hidden', !isAdmin);
+            document.getElementById('adminTaskSection').classList.toggle('hidden', !isAdmin);
+            document.getElementById('filterCancelledBtn').classList.toggle('hidden', !isAdmin);
+
             if (isAdmin) {
-                document.getElementById('adminLogSection').classList.remove('hidden');
-                document.getElementById('adminUserSection').classList.remove('hidden');
-                document.getElementById('adminTaskSection').classList.remove('hidden');
                 renderUserTable();
                 renderAuditLog();
-            } else {
-                document.getElementById('adminLogSection').classList.add('hidden');
-                document.getElementById('adminUserSection').classList.add('hidden');
-                document.getElementById('adminTaskSection').classList.add('hidden');
             }
-            await fetchTasks();
+            renderTasks();
         }
 
         async function fetchTasks() {
+            if (!_supabase) return;
             try {
                 const { data, error } = await _supabase.from('tasks').select('*').order('id', { ascending: false });
-                if (error) throw error;
-                if (data) {
+                if (!error && data) {
                     tasks = data;
                     renderTasks();
                     if (currentUser && currentUser.role.toLowerCase() === 'admin') {
@@ -301,7 +309,7 @@
                     }
                 }
             } catch (err) {
-                console.error("Task fetch error:", err.message || err);
+                console.error("Task fetch error:", err);
             }
         }
 
@@ -320,7 +328,7 @@
             localStorage.setItem('tm_local_users', JSON.stringify(users));
 
             try {
-                await _supabase.from('users').insert([newUser]);
+                if (_supabase) await _supabase.from('users').insert([newUser]);
             } catch (err) {}
 
             document.getElementById('createUserForm').reset();
@@ -334,34 +342,36 @@
                 return;
             }
             if (confirm(`Delete user "${username}"?`)) {
-                users = users.filter(u => u.id !== id && u.username !== username);
+                users = users.filter(u => u.username.toLowerCase() !== username.toLowerCase());
                 localStorage.setItem('tm_local_users', JSON.stringify(users));
                 renderUserTable();
 
                 try {
-                    await _supabase.from('users').delete().eq('id', id);
+                    if (_supabase) await _supabase.from('users').delete().eq('username', username);
                 } catch (err) {}
             }
         };
 
         function renderUserTable() {
             const tbody = document.querySelector('#userTable tbody');
+            if (!tbody) return;
             tbody.innerHTML = '';
             users.forEach(u => {
-                let action = (currentUser.role.toLowerCase() === 'admin' && u.username.toLowerCase() !== 'dhanu')
-                    ? `<button class="delete-btn" onclick="deleteUser(${u.id}, '${u.username}')">Delete</button>`
+                let action = (currentUser && currentUser.role.toLowerCase() === 'admin' && u.username.toLowerCase() !== 'dhanu')
+                    ? `<button class="delete-btn" onclick="deleteUser(${u.id || 0}, '${u.username}')">Delete</button>`
                     : '<span style="color:var(--muted); font-size:0.85rem;">Protected</span>';
                 tbody.innerHTML += `<tr><td>${u.username}</td><td>${u.role.toUpperCase()}</td><td>${action}</td></tr>`;
             });
         }
 
-        // 1) Activity Log automatically after 2 days for completed tasks
+        // 1) Activity Log: Completed items appear after 2 days
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
+            if (!tbody) return;
             tbody.innerHTML = '';
             
             const twoDaysInMs = 2 * 24 * 60 * 60 * 1000;
-            const now = new Date().getTime();
+            const now = Date.now();
 
             const eligibleTasks = tasks.filter(t => {
                 if (!t.last_updated_by) return false;
@@ -374,7 +384,7 @@
             });
 
             if (eligibleTasks.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted); font-style:italic;">No qualifying activity logged (completed items require 2 days to appear).</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--muted); font-style:italic;">No logs to display (completed items appear 2 days after completion).</td></tr>`;
                 return;
             }
 
@@ -397,22 +407,15 @@
             const title = document.getElementById('taskTitleInput').value.trim();
             const deadline = document.getElementById('taskDeadlineInput').value;
 
-            const { error } = await _supabase.from('tasks').insert([{ 
-                title, 
-                deadline, 
-                status: 'Open', 
-                comment: '', 
-                last_updated_by: currentUser.username,
-                completed_at: null
-            }]);
-            if (error) alert('Error: ' + error.message);
-            else {
-                document.getElementById('taskForm').reset();
-                document.getElementById('taskDeadlineInput').valueAsDate = new Date();
-                await fetchTasks();
-            }
-        });
-
-        window.deleteTask = async function(id) {
-            if (confirm("Delete this task?")) {
-                const { error } 
+            if (_supabase) {
+                const { error } = await _supabase.from('tasks').insert([{ 
+                    title, 
+                    deadline, 
+                    status: 'Open', 
+                    comment: '', 
+                    last_updated_by: currentUser.username,
+                    completed_at: null
+                }]);
+                if (error) alert('Error creating task: ' + error.message);
+                else {
+                    document.getElementById('task
