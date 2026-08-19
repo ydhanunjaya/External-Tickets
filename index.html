@@ -40,7 +40,7 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         
-        /* Overdue Task Highlight */
+        /* Overdue Task Highlight (Requirement 3) */
         .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
         .task-item.is-overdue {
             background-color: var(--danger-bg) !important;
@@ -71,11 +71,11 @@
         <div class="form-grid" style="grid-template-columns: 1fr;">
             <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="loginUser" placeholder="Enter username" value="Dhanu">
+                <input type="text" id="loginUser" placeholder="Enter username" autocomplete="off">
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="loginPass" placeholder="Enter password" value="Dhanu@2002">
+                <input type="password" id="loginPass" placeholder="Enter password" autocomplete="off">
             </div>
             <div class="form-group" style="margin-top: 0.5rem;">
                 <button type="button" id="btnLogin" style="width: 100%;">Login</button>
@@ -93,7 +93,7 @@
             <button class="btn-secondary" id="btnLogout" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
         </header>
 
-        <!-- ADMIN: ACTIVITY AUDIT LOG (Completed tasks appear after 2 days) -->
+        <!-- ADMIN: ACTIVITY AUDIT LOG (Req 1: Completed tasks appear after 2 days) -->
         <div id="adminLogSection" class="card" style="display: none;">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
@@ -121,11 +121,11 @@
             <div class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
                 <div class="form-group">
                     <label>Username</label>
-                    <input type="text" id="newUsername" placeholder="New username">
+                    <input type="text" id="newUsername" placeholder="New username" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="password" id="newPassword" placeholder="New password">
+                    <input type="password" id="newPassword" placeholder="New password" autocomplete="off">
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
                     <button type="button" id="btnCreateUser">Create User</button>
@@ -266,6 +266,9 @@
                 }
                 renderTasks();
             } else {
+                // Clear input values when returning to login
+                document.getElementById('loginUser').value = '';
+                document.getElementById('loginPass').value = '';
                 loginEl.style.display = 'block';
                 appEl.style.display = 'none';
             }
@@ -274,6 +277,11 @@
         function doLogin() {
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
+
+            if (!u || !p) {
+                alert('Please enter both username and password.');
+                return;
+            }
 
             let matched = users.find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p);
 
@@ -338,7 +346,7 @@
 
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
-            alert(`User "${newU}" created successfully!`);
+            alert(`User "${newU}" created!`);
         }
 
         async function doDeleteUser(username) {
@@ -623,9 +631,12 @@
             }
         });
 
+        // Initialize deadline input date & clear form inputs
         window.addEventListener('DOMContentLoaded', () => {
             const dl = document.getElementById('taskDeadlineInput');
             if (dl) dl.valueAsDate = new Date();
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPass').value = '';
         });
     </script>
 </body>
