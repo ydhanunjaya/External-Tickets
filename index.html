@@ -425,5 +425,220 @@
                 alert('Please enter task name.');
                 return;
             }
+      }
 
+            const newTask = {
+                id: Date.now(),
+                title,
+                deadline: deadline || null,
+                status: 'Open',
+                comment: '',
+                last_updated_by: currentUser ? currentUser.username : 'admin',
+                completed_at: null
+            };
+
+            tasks.unshift(newTask);
+            safeSet('tm_tasks', tasks);
+            renderTasks();
+
+            await api('tasks', 'POST', {
+                title,
+                deadline: deadline || null,
+                status: 'Open',
+                comment: '',
+                last_updated_by: currentUser ? currentUser.username : 'admin',
+                completed_at: null
+            });
+
+            document.getElementById('taskTitleInput').value = '';
+            document.getElementById('taskDeadlineInput').valueAsDate = new Date();
+        }
+
+        // Delete Task
+        async function doDeleteTask(id) {
+            if (confirm("Delete this task?")) {
+                tasks = tasks.filter(t => t.id != id);
+                safeSet('tm_tasks', tasks);
+                renderTasks();
+                await api(`tasks?id=eq.${id}`, 'DELETE');
+            }
+        }
+
+        // Requirement 4: Admin-only deadline editing
+        async function doUpdateDeadline(id, newDeadline) {
+            if (!newDeadline) return;
+            const task = tasks.find(t => t.id == id);
+            if (task) {
+                task.deadline = newDeadline;
+                task.last_updated_by = currentUser.username;
+                safeSet('tm_tasks', tasks);
+                renderTasks();
+                await api(`tasks?id=eq.${id}`, 'PATCH', {
+                    deadline: newDeadline,
+                    last_updated_by: currentUser.username
+                });
+            }
+        }
+
+        // Status change & Modal Handling
+        function onStatusSelectChange(id, status) {
+            if (status === 'Completed') {
+                pendingTaskId = id;
+                document.getElementById('workComment').value = '';
+                const modal = document.getElementById('commentModal');
+                modal.style.display = 'flex';
+            } else {
+                saveTaskStatus(id, status, '', false);
+            }
+        }
+
+        function closeModal() {
+            pendingTaskId = null;
+            document.getElementById('commentModal').style.display = 'none';
+            renderTasks();
+        }
+
+        async function submitModalComment() {
+            if (pendingTaskId) {
+                const comment = document.getElementById('workComment').value.trim();
+                await saveTaskStatus(pendingTaskId, 'Completed', comment, true);
+                closeModal();
+            }
+        }
+
+        async function saveTaskStatus(id, status, comment, isCompleted) {
+            const task = tasks.find(t => t.id == id);
+            if (task) {
+                task.status = status;
+                task.comment = comment || '';
+                task.last_updated_by = currentUser ? currentUser.username : 'User';
+                task.completed_at = isCompleted ? new Date().toISOString() : (status === 'Completed' ? task.completed_at : null);
+
+                safeSet('tm_tasks', tasks);
+                renderTasks();
+                if (currentUser && currentUser.role.toLowerCase() === 'admin') renderAuditLog();
+
+                await api(`tasks?id=eq.${id}`, 'PATCH', {
+                    status,
+                    comment: comment || '',
+                    last_updated_by: currentUser ? currentUser.username : 'User',
+                    completed_at: task.completed_at
+                });
+            }
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            const filtered = tasks.filter(t => currentFilter === 'All' || t.status === currentFilter);
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<p style="color: var(--muted); text-align: center; padding: 2rem;">No tasks found.</p>`;
+                return;
+            }
+
+            const isAdmin = currentUser && currentUser.role.toLowerCase() === 'admin';
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            filtered.forEach(task => {
+                // Req 3: Red highlight if missed deadline & not completed
+                const isOverdue = task.deadline && task.deadline < todayStr && task.status !== 'Completed';
+
+                // Req 2: Regular user cannot see Cancelled option
+                const allowedStatuses = isAdmin 
+                    ? ['Open', 'Working', 'Completed', 'Cancelled']
+                    : ['Open', 'Working', 'Completed'];
+
+                const statusOptions = allowedStatuses.map(st => 
+                    `<option value="${st}" ${task.status === st ? 'selected' : ''}>${st}</option>`
+                ).join('');
+
+                // Req 4: Admin date picker vs user plain text
+                const deadlineControl = isAdmin ? `
+                    <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 0.35rem;">
+                        <span style="font-size: 0.85rem; color: var(--muted);">📅 Deadline:</span>
+                        <input type="date" class="task-dl-input" data-task-id="${task.id}" value="${task.deadline || ''}" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.85rem;">
+                        ${isOverdue ? '<span class="overdue-tag">⚠️ Overdue</span>' : ''}
+                    </div>
+                ` : `
+                    <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem;">
+                        📅 Deadline: ${task.deadline || 'No deadline'} 
+                        ${isOverdue ? '<span class="overdue-tag">⚠️ Overdue</span>' : ''}
+                    </p>
+                `;
+
+                const div = document.createElement('div');
+                div.className = `task-item ${isOverdue ? 'is-overdue' : ''}`;
+                div.innerHTML = `
+                    <div class="task-header">
+                        <div>
+                            <h3 style="font-size: 1.1rem; margin-bottom: 0.25rem;">${task.title || ''}</h3>
+                            ${deadlineControl}
+                        </div>
+                        <span class="status-badge badge-${task.status}">${task.status}</span>
+                    </div>
+
+                    ${task.comment ? `
+                        <div class="comment-section">
+                            <strong>Latest Note:</strong> ${task.comment}
+                            <span style="font-size: 0.75rem; color: var(--muted); display: block; margin-top: 0.25rem;">— Updated by ${task.last_updated_by || 'User'}</span>
+                        </div>
+                    ` : ''}
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; gap: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <label style="font-size: 0.85rem; margin: 0;">Status:</label>
+                            <select class="task-status-select" data-task-id="${task.id}" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; width: auto;">
+                                ${statusOptions}
+                            </select>
+                        </div>
+                        ${isAdmin ? `<button class="delete-btn btn-del-task" data-task-id="${task.id}">Delete Task</button>` : ''}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // Global Event Delegation (Zero Broken Inline Handlers)
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'btnLogin') doLogin();
+            if (e.target.id === 'btnLogout') doLogout();
+            if (e.target.id === 'btnCreateUser') doCreateUser();
+            if (e.target.id === 'btnCreateTask') doCreateTask();
+            if (e.target.id === 'btnCancelModal') closeModal();
+            if (e.target.id === 'btnSubmitModal') submitModalComment();
+
+            if (e.target.dataset.delUser) {
+                doDeleteUser(e.target.dataset.delUser);
+            }
+            if (e.target.classList.contains('btn-del-task')) {
+                doDeleteTask(e.target.dataset.taskId);
+            }
+            if (e.target.classList.contains('filter-btn')) {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentFilter = e.target.dataset.filter;
+                renderTasks();
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('task-status-select')) {
+                onStatusSelectChange(e.target.dataset.taskId, e.target.value);
+            }
+            if (e.target.classList.contains('task-dl-input')) {
+                doUpdateDeadline(e.target.dataset.taskId, e.target.value);
+            }
+        });
+
+        // Initialize deadline input date
+        window.addEventListener('DOMContentLoaded', () => {
+            const dl = document.getElementById('taskDeadlineInput');
+            if (dl) dl.valueAsDate = new Date();
+        });
+    </script>
+</body>
+</html>
     
