@@ -40,11 +40,11 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         
-        /* Requirement 3: Overdue Task Red Highlight */
+        /* Overdue Task Highlight */
         .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
         .task-item.is-overdue {
-            background-color: var(--danger-bg);
-            border: 2px solid var(--danger-border);
+            background-color: var(--danger-bg) !important;
+            border: 2px solid var(--danger-border) !important;
         }
         .task-item.is-overdue h3 { color: #b91c1c; }
         .overdue-tag { color: #dc2626; font-weight: bold; margin-left: 0.5rem; font-size: 0.85rem; }
@@ -65,7 +65,7 @@
 </head>
 <body>
 
-    <!-- 1. LOGIN SCREEN (Visible by Default) -->
+    <!-- 1. LOGIN SCREEN -->
     <div id="loginScreen" class="login-wrapper card">
         <h1>Task Manager Login</h1>
         <div class="form-grid" style="grid-template-columns: 1fr;">
@@ -83,7 +83,7 @@
         </div>
     </div>
 
-    <!-- 2. MAIN APP SCREEN (Hidden by Default) -->
+    <!-- 2. MAIN APP SCREEN -->
     <div id="appScreen" class="container" style="display: none;">
         <header>
             <div>
@@ -93,11 +93,11 @@
             <button class="btn-secondary" id="btnLogout" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
         </header>
 
-        <!-- ADMIN: ACTIVITY AUDIT LOG (Req 1: Completed tasks appear after 2 days) -->
+        <!-- ADMIN: ACTIVITY AUDIT LOG (Completed tasks appear after 2 days) -->
         <div id="adminLogSection" class="card" style="display: none;">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
-                Completed tasks appear here <strong>2 days after completion</strong>. Other status logs appear in real-time.
+                Completed tasks appear here <strong>2 days after completion</strong>. Other updates appear in real-time.
             </p>
             <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
@@ -178,7 +178,7 @@
         </div>
     </div>
 
-    <!-- 3. COMMENT MODAL -->
+    <!-- 3. WORK SUMMARY MODAL -->
     <div id="commentModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
         <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
             <h2>Work Details Required</h2>
@@ -195,11 +195,9 @@
     </div>
 
     <script>
-        // Supabase REST Endpoints
         const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
 
-        // Safe in-memory and local storage
         let memStorage = {};
         function safeGet(key, fallback) {
             try {
@@ -224,7 +222,7 @@
         let currentFilter = 'All';
         let pendingTaskId = null;
 
-        // REST Helper
+        // REST API helper
         async function api(endpoint, method = 'GET', body = null) {
             try {
                 const opts = {
@@ -245,7 +243,7 @@
             }
         }
 
-        // Direct Screen Switcher (Direct Inline Display Manipulation)
+        // Direct screen switcher
         function setView(isLoggedIn) {
             const loginEl = document.getElementById('loginScreen');
             const appEl = document.getElementById('appScreen');
@@ -273,7 +271,6 @@
             }
         }
 
-        // Login Action
         function doLogin() {
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
@@ -287,7 +284,7 @@
             if (matched) {
                 currentUser = matched;
                 setView(true);
-                syncData(); // background sync with Supabase
+                syncData();
             } else {
                 alert('Invalid username or password.');
             }
@@ -298,7 +295,6 @@
             setView(false);
         }
 
-        // Background Data Sync
         async function syncData() {
             const remoteUsers = await api('users?select=*');
             if (remoteUsers && Array.isArray(remoteUsers) && remoteUsers.length > 0) {
@@ -319,7 +315,6 @@
             }
         }
 
-        // Create User
         async function doCreateUser() {
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
@@ -343,10 +338,9 @@
 
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
-            alert(`User "${newU}" created!`);
+            alert(`User "${newU}" created successfully!`);
         }
 
-        // Delete User
         async function doDeleteUser(username) {
             if (username.toLowerCase() === 'dhanu') {
                 alert("Cannot delete primary admin.");
@@ -378,7 +372,7 @@
             });
         }
 
-        // Requirement 1: Audit log shows completed items after 2 days (48 hours)
+        // Requirement 1: Completed tasks appear after 2 days (48 hours)
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
             if (!tbody) return;
@@ -416,7 +410,6 @@
             });
         }
 
-        // Create Task
         async function doCreateTask() {
             const title = document.getElementById('taskTitleInput').value.trim();
             const deadline = document.getElementById('taskDeadlineInput').value;
@@ -425,7 +418,6 @@
                 alert('Please enter task name.');
                 return;
             }
-      }
 
             const newTask = {
                 id: Date.now(),
@@ -454,7 +446,6 @@
             document.getElementById('taskDeadlineInput').valueAsDate = new Date();
         }
 
-        // Delete Task
         async function doDeleteTask(id) {
             if (confirm("Delete this task?")) {
                 tasks = tasks.filter(t => t.id != id);
@@ -464,7 +455,7 @@
             }
         }
 
-        // Requirement 4: Admin-only deadline editing
+        // Requirement 4: Admin-Only deadline editing
         async function doUpdateDeadline(id, newDeadline) {
             if (!newDeadline) return;
             const task = tasks.find(t => t.id == id);
@@ -480,7 +471,6 @@
             }
         }
 
-        // Status change & Modal Handling
         function onStatusSelectChange(id, status) {
             if (status === 'Completed') {
                 pendingTaskId = id;
@@ -543,10 +533,10 @@
             const todayStr = new Date().toISOString().split('T')[0];
 
             filtered.forEach(task => {
-                // Req 3: Red highlight if missed deadline & not completed
+                // Requirement 3: Missed deadline turns red
                 const isOverdue = task.deadline && task.deadline < todayStr && task.status !== 'Completed';
 
-                // Req 2: Regular user cannot see Cancelled option
+                // Requirement 2: Users cannot select Cancelled
                 const allowedStatuses = isAdmin 
                     ? ['Open', 'Working', 'Completed', 'Cancelled']
                     : ['Open', 'Working', 'Completed'];
@@ -555,7 +545,7 @@
                     `<option value="${st}" ${task.status === st ? 'selected' : ''}>${st}</option>`
                 ).join('');
 
-                // Req 4: Admin date picker vs user plain text
+                // Requirement 4: Deadline input for admin, plain text for users
                 const deadlineControl = isAdmin ? `
                     <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 0.35rem;">
                         <span style="font-size: 0.85rem; color: var(--muted);">📅 Deadline:</span>
@@ -601,7 +591,7 @@
             });
         }
 
-        // Global Event Delegation (Zero Broken Inline Handlers)
+        // Global Event Handlers
         document.addEventListener('click', (e) => {
             if (e.target.id === 'btnLogin') doLogin();
             if (e.target.id === 'btnLogout') doLogout();
@@ -633,7 +623,6 @@
             }
         });
 
-        // Initialize deadline input date
         window.addEventListener('DOMContentLoaded', () => {
             const dl = document.getElementById('taskDeadlineInput');
             if (dl) dl.valueAsDate = new Date();
@@ -641,4 +630,3 @@
     </script>
 </body>
 </html>
-    
