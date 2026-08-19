@@ -40,11 +40,11 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
         .task-list { display: flex; flex-direction: column; gap: 1rem; }
         
-        /* Requirement 3: Overdue Task Red Styling */
+        /* Requirement 3: Overdue Task Red Highlight */
         .task-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
         .task-item.is-overdue {
-            background-color: var(--danger-bg) !important;
-            border: 2px solid var(--danger-border) !important;
+            background-color: var(--danger-bg);
+            border: 2px solid var(--danger-border);
         }
         .task-item.is-overdue h3 { color: #b91c1c; }
         .overdue-tag { color: #dc2626; font-weight: bold; margin-left: 0.5rem; font-size: 0.85rem; }
@@ -58,7 +58,6 @@
         .comment-section { background: #f1f5f9; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-top: 0.5rem; }
         .delete-btn { background: #ef4444; padding: 0.4rem 0.8rem; font-size: 0.85rem; border-radius: 6px; }
         .delete-btn:hover { background: #dc2626; }
-        .hidden { display: none !important; }
         .user-table, .log-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
         .user-table th, .user-table td, .log-table th, .log-table td { border: 1px solid var(--border); padding: 0.75rem; text-align: left; font-size: 0.9rem; }
         .user-table th, .log-table th { background-color: #f1f5f9; }
@@ -66,7 +65,7 @@
 </head>
 <body>
 
-    <!-- 1. LOGIN SCREEN -->
+    <!-- 1. LOGIN SCREEN (Visible by Default) -->
     <div id="loginScreen" class="login-wrapper card">
         <h1>Task Manager Login</h1>
         <div class="form-grid" style="grid-template-columns: 1fr;">
@@ -79,26 +78,26 @@
                 <input type="password" id="loginPass" placeholder="Enter password" value="Dhanu@2002">
             </div>
             <div class="form-group" style="margin-top: 0.5rem;">
-                <button type="button" onclick="performLogin()" style="width: 100%;">Login</button>
+                <button type="button" id="btnLogin" style="width: 100%;">Login</button>
             </div>
         </div>
     </div>
 
-    <!-- 2. MAIN APP SCREEN -->
-    <div id="appScreen" class="container hidden">
+    <!-- 2. MAIN APP SCREEN (Hidden by Default) -->
+    <div id="appScreen" class="container" style="display: none;">
         <header>
             <div>
                 <h1>Task Manager</h1>
                 <p id="welcomeUser" style="color: var(--muted); font-size: 0.9rem;"></p>
             </div>
-            <button class="btn-secondary" onclick="logout()" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
+            <button class="btn-secondary" id="btnLogout" style="width: auto; padding: 0.5rem 1rem;">Logout</button>
         </header>
 
-        <!-- ADMIN: ACTIVITY AUDIT LOG (Req 1) -->
-        <div id="adminLogSection" class="card hidden">
+        <!-- ADMIN: ACTIVITY AUDIT LOG (Req 1: Completed tasks appear after 2 days) -->
+        <div id="adminLogSection" class="card" style="display: none;">
             <h2>Activity Audit Log (Admin View)</h2>
             <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem;">
-                Completed tasks appear here <strong>2 days after completion</strong>. Other updates appear in real-time.
+                Completed tasks appear here <strong>2 days after completion</strong>. Other status logs appear in real-time.
             </p>
             <div style="max-height: 250px; overflow-y: auto;">
                 <table class="log-table" id="logTable">
@@ -117,7 +116,7 @@
         </div>
 
         <!-- ADMIN: CREATE USER -->
-        <div id="adminUserSection" class="card hidden">
+        <div id="adminUserSection" class="card" style="display: none;">
             <h2>Create New User Account</h2>
             <div class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
                 <div class="form-group">
@@ -129,7 +128,7 @@
                     <input type="password" id="newPassword" placeholder="New password">
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
-                    <button type="button" onclick="createUser()">Create User</button>
+                    <button type="button" id="btnCreateUser">Create User</button>
                 </div>
             </div>
             <div style="margin-top: 1.5rem;">
@@ -148,7 +147,7 @@
         </div>
 
         <!-- ADMIN: CREATE TASK -->
-        <div id="adminTaskSection" class="card hidden">
+        <div id="adminTaskSection" class="card" style="display: none;">
             <h2>Create Global Task</h2>
             <div class="form-grid">
                 <div class="form-group">
@@ -160,7 +159,7 @@
                     <input type="date" id="taskDeadlineInput">
                 </div>
                 <div class="form-group" style="justify-content: flex-end;">
-                    <button type="button" onclick="createTask()">Publish Task</button>
+                    <button type="button" id="btnCreateTask">Publish Task</button>
                 </div>
             </div>
         </div>
@@ -169,18 +168,18 @@
         <div class="card">
             <h2>Task Workspace</h2>
             <div class="filters">
-                <button class="filter-btn active" onclick="filterTasks('All')">All Tasks</button>
-                <button class="filter-btn" onclick="filterTasks('Open')">Open</button>
-                <button class="filter-btn" onclick="filterTasks('Working')">Working</button>
-                <button class="filter-btn" onclick="filterTasks('Completed')">Completed</button>
-                <button class="filter-btn" id="filterCancelledBtn" onclick="filterTasks('Cancelled')">Cancelled</button>
+                <button class="filter-btn active" data-filter="All">All Tasks</button>
+                <button class="filter-btn" data-filter="Open">Open</button>
+                <button class="filter-btn" data-filter="Working">Working</button>
+                <button class="filter-btn" data-filter="Completed">Completed</button>
+                <button class="filter-btn" id="filterCancelledBtn" data-filter="Cancelled" style="display: none;">Cancelled</button>
             </div>
             <div class="task-list" id="taskList"></div>
         </div>
     </div>
 
     <!-- 3. COMMENT MODAL -->
-    <div id="commentModal" class="hidden" style="position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:1000;">
+    <div id="commentModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
         <div class="card" style="width: 100%; max-width: 450px; margin: 0;">
             <h2>Work Details Required</h2>
             <p style="font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem;">Provide summary for completed work.</p>
@@ -189,22 +188,33 @@
                 <textarea id="workComment" rows="4" placeholder="Explain what was accomplished..."></textarea>
             </div>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                <button type="button" class="btn-secondary" onclick="closeCommentModal()" style="width: auto;">Cancel</button>
-                <button type="button" onclick="submitCompletion()" style="width: auto;">Submit Completion</button>
+                <button type="button" class="btn-secondary" id="btnCancelModal" style="width: auto;">Cancel</button>
+                <button type="button" id="btnSubmitModal" style="width: auto;">Submit Completion</button>
             </div>
         </div>
     </div>
 
     <script>
+        // Supabase REST Endpoints
         const SUPABASE_URL = 'https://zgetzwielvoqvqyfrimp.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_-MnwUNpSgxYNcPi2s5jT7A_yNv6KjZW';
 
-        // Safe storage helpers
+        // Safe in-memory and local storage
+        let memStorage = {};
         function safeGet(key, fallback) {
-            try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; }
+            try {
+                const val = localStorage.getItem(key);
+                return val ? JSON.parse(val) : fallback;
+            } catch (e) {
+                return memStorage[key] || fallback;
+            }
         }
         function safeSet(key, val) {
-            try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+            try {
+                localStorage.setItem(key, JSON.stringify(val));
+            } catch (e) {
+                memStorage[key] = val;
+            }
         }
 
         const defaultAdmin = { id: 999, username: 'Dhanu', password: 'Dhanu@2002', role: 'admin' };
@@ -214,20 +224,20 @@
         let currentFilter = 'All';
         let pendingTaskId = null;
 
-        // REST API helper that never throws or freezes UI
-        async function dbRequest(endpoint, method = 'GET', body = null) {
+        // REST Helper
+        async function api(endpoint, method = 'GET', body = null) {
             try {
-                const options = {
+                const opts = {
                     method: method,
                     headers: {
                         'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
                         'Content-Type': 'application/json',
                         'Prefer': method === 'POST' ? 'return=representation' : undefined
                     }
                 };
-                if (body) options.body = JSON.stringify(body);
-                const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, options);
+                if (body) opts.body = JSON.stringify(body);
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, opts);
                 if (!res.ok) return null;
                 return await res.json();
             } catch (e) {
@@ -235,24 +245,36 @@
             }
         }
 
-        // Initialize on load
-        window.addEventListener('DOMContentLoaded', () => {
-            const dl = document.getElementById('taskDeadlineInput');
-            if (dl) dl.valueAsDate = new Date();
+        // Direct Screen Switcher (Direct Inline Display Manipulation)
+        function setView(isLoggedIn) {
+            const loginEl = document.getElementById('loginScreen');
+            const appEl = document.getElementById('appScreen');
 
-            try {
-                const saved = sessionStorage.getItem('tm_current_user');
-                if (saved) {
-                    currentUser = JSON.parse(saved);
-                    showAppScreen();
+            if (isLoggedIn && currentUser) {
+                loginEl.style.display = 'none';
+                appEl.style.display = 'block';
+
+                document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
+
+                const isAdmin = (currentUser.role || '').toLowerCase() === 'admin';
+                document.getElementById('adminLogSection').style.display = isAdmin ? 'block' : 'none';
+                document.getElementById('adminUserSection').style.display = isAdmin ? 'block' : 'none';
+                document.getElementById('adminTaskSection').style.display = isAdmin ? 'block' : 'none';
+                document.getElementById('filterCancelledBtn').style.display = isAdmin ? 'inline-block' : 'none';
+
+                if (isAdmin) {
+                    renderUsers();
+                    renderAuditLog();
                 }
-            } catch (e) {}
+                renderTasks();
+            } else {
+                loginEl.style.display = 'block';
+                appEl.style.display = 'none';
+            }
+        }
 
-            syncData();
-        });
-
-        // 1. GUARANTEED INSTANT LOGIN (Runs synchronously first)
-        function performLogin() {
+        // Login Action
+        function doLogin() {
             const u = document.getElementById('loginUser').value.trim();
             const p = document.getElementById('loginPass').value.trim();
 
@@ -264,55 +286,31 @@
 
             if (matched) {
                 currentUser = matched;
-                try { sessionStorage.setItem('tm_current_user', JSON.stringify(currentUser)); } catch (e) {}
-                
-                // Immediately switch screens
-                showAppScreen();
-                syncData();
+                setView(true);
+                syncData(); // background sync with Supabase
             } else {
                 alert('Invalid username or password.');
             }
         }
 
-        function showAppScreen() {
-            if (!currentUser) return;
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('appScreen').classList.remove('hidden');
-            document.getElementById('welcomeUser').textContent = `Logged in as: ${currentUser.username} (${currentUser.role.toUpperCase()})`;
-
-            const isAdmin = currentUser.role.toLowerCase() === 'admin';
-            document.getElementById('adminLogSection').classList.toggle('hidden', !isAdmin);
-            document.getElementById('adminUserSection').classList.toggle('hidden', !isAdmin);
-            document.getElementById('adminTaskSection').classList.toggle('hidden', !isAdmin);
-            document.getElementById('filterCancelledBtn').classList.toggle('hidden', !isAdmin);
-
-            if (isAdmin) {
-                renderUserTable();
-                renderAuditLog();
-            }
-            renderTasks();
-        }
-
-        function logout() {
-            try { sessionStorage.removeItem('tm_current_user'); } catch (e) {}
+        function doLogout() {
             currentUser = null;
-            document.getElementById('appScreen').classList.add('hidden');
-            document.getElementById('loginScreen').classList.remove('hidden');
+            setView(false);
         }
 
-        // Background sync with Supabase
+        // Background Data Sync
         async function syncData() {
-            const remoteUsers = await dbRequest('users?select=*');
+            const remoteUsers = await api('users?select=*');
             if (remoteUsers && Array.isArray(remoteUsers) && remoteUsers.length > 0) {
                 if (!remoteUsers.some(u => u.username.toLowerCase() === 'dhanu')) {
                     remoteUsers.push(defaultAdmin);
                 }
                 users = remoteUsers;
                 safeSet('tm_users', users);
-                if (currentUser && currentUser.role.toLowerCase() === 'admin') renderUserTable();
+                if (currentUser && currentUser.role.toLowerCase() === 'admin') renderUsers();
             }
 
-            const remoteTasks = await dbRequest('tasks?select=*&order=id.desc');
+            const remoteTasks = await api('tasks?select=*&order=id.desc');
             if (remoteTasks && Array.isArray(remoteTasks)) {
                 tasks = remoteTasks;
                 safeSet('tm_tasks', tasks);
@@ -321,12 +319,13 @@
             }
         }
 
-        async function createUser() {
+        // Create User
+        async function doCreateUser() {
             const newU = document.getElementById('newUsername').value.trim();
             const newP = document.getElementById('newPassword').value.trim();
 
             if (!newU || !newP) {
-                alert('Please enter both username and password.');
+                alert('Please enter username and password.');
                 return;
             }
 
@@ -338,16 +337,17 @@
             const newUser = { id: Date.now(), username: newU, password: newP, role: 'user' };
             users.push(newUser);
             safeSet('tm_users', users);
-            renderUserTable();
+            renderUsers();
 
-            await dbRequest('users', 'POST', { username: newU, password: newP, role: 'user' });
+            await api('users', 'POST', { username: newU, password: newP, role: 'user' });
 
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
-            alert(`User "${newU}" created successfully!`);
+            alert(`User "${newU}" created!`);
         }
 
-        async function deleteUser(username) {
+        // Delete User
+        async function doDeleteUser(username) {
             if (username.toLowerCase() === 'dhanu') {
                 alert("Cannot delete primary admin.");
                 return;
@@ -355,29 +355,35 @@
             if (confirm(`Delete user "${username}"?`)) {
                 users = users.filter(u => u.username.toLowerCase() !== username.toLowerCase());
                 safeSet('tm_users', users);
-                renderUserTable();
-                await dbRequest(`users?username=eq.${username}`, 'DELETE');
+                renderUsers();
+                await api(`users?username=eq.${username}`, 'DELETE');
             }
         }
 
-        function renderUserTable() {
+        function renderUsers() {
             const tbody = document.querySelector('#userTable tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
             users.forEach(u => {
-                let action = (u.username.toLowerCase() !== 'dhanu')
-                    ? `<button class="delete-btn" onclick="deleteUser('${u.username}')">Delete</button>`
-                    : '<span style="color:var(--muted); font-size:0.85rem;">Protected</span>';
-                tbody.innerHTML += `<tr><td>${u.username}</td><td>${u.role.toUpperCase()}</td><td>${action}</td></tr>`;
+                const tr = document.createElement('tr');
+                const isDhanu = u.username.toLowerCase() === 'dhanu';
+                tr.innerHTML = `
+                    <td>${u.username}</td>
+                    <td>${(u.role || 'user').toUpperCase()}</td>
+                    <td>
+                        ${isDhanu ? '<span style="color:var(--muted); font-size:0.85rem;">Protected</span>' : `<button class="delete-btn" data-del-user="${u.username}">Delete</button>`}
+                    </td>
+                `;
+                tbody.appendChild(tr);
             });
         }
 
-        // Req 1: Activity Log displays completed tasks after 2 days
+        // Requirement 1: Audit log shows completed items after 2 days (48 hours)
         function renderAuditLog() {
             const tbody = document.querySelector('#logTable tbody');
             if (!tbody) return;
             tbody.innerHTML = '';
-            
+
             const twoDaysInMs = 2 * 24 * 60 * 60 * 1000;
             const now = Date.now();
 
@@ -396,20 +402,28 @@
                 return;
             }
 
-            eligibleTasks.forEach(task => {
-                const completedDisplay = task.completed_at ? new Date(task.completed_at).toLocaleDateString() : '-';
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${task.title || ''}</strong></td>
-                        <td>👤 ${task.last_updated_by}</td>
-                        <td><span class="status-badge badge-${task.status}">${task.status}</span></td>
-                        <td>${task.comment || '<span style="color:var(--muted);">-</span>'}</td>
-                        <td style="font-size:0.85rem; color:var(--muted);">${completedDisplay}</td>
-                    </tr>
+            eligibleTasks.forEach(t => {
+                const tr = document.createElement('tr');
+                const completedDisplay = t.completed_at ? new Date(t.completed_at).toLocaleDateString() : '-';
+                tr.innerHTML = `
+                    <td><strong>${t.title || ''}</strong></td>
+                    <td>👤 ${t.last_updated_by}</td>
+                    <td><span class="status-badge badge-${t.status}">${t.status}</span></td>
+                    <td>${t.comment || '<span style="color:var(--muted);">-</span>'}</td>
+                    <td style="font-size:0.85rem; color:var(--muted);">${completedDisplay}</td>
                 `;
+                tbody.appendChild(tr);
             });
         }
 
-        async function createTask() {
+        // Create Task
+        async function doCreateTask() {
             const title = document.getElementById('taskTitleInput').value.trim();
-            const deadline = document.getElementById('taskDeadlineI
+            const deadline = document.getElementById('taskDeadlineInput').value;
+
+            if (!title) {
+                alert('Please enter task name.');
+                return;
+            }
+
+    
